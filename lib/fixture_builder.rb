@@ -32,7 +32,7 @@ module FixtureBuilder
     end
 
     def files_to_check
-      @files_to_check ||= %w{ db/schema.rb spec/spec_helpers/girl.rb }
+      @files_to_check ||= %w{ db/schema.rb }
     end
 
     def record_name_fields
