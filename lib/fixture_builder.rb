@@ -5,7 +5,7 @@ module FixtureBuilder
     def configuration
       @configuration ||= FixtureBuilder::Configuration.new
     end
-    
+
     def configure
       yield configuration
     end
@@ -35,6 +35,12 @@ module FixtureBuilder
       @files_to_check ||= %w{ db/schema.rb }
     end
 
+    def files_to_check=(files)
+      @files_to_check = files
+      @file_hashes = file_hashes
+      @files_to_check
+    end
+
     def record_name_fields
       @record_name_fields ||= %w{ unique_name display_name name title username login }
     end
@@ -53,9 +59,9 @@ module FixtureBuilder
       dump_tables
       write_config
     end
-  
+
     private
-  
+
     def say(*messages)
       puts messages.map { |message| "=> #{message}" }
     end
