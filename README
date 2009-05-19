@@ -1,13 +1,38 @@
 FixtureBuilder
 ==============
 
-Introduction goes here.
-
+Based on the code from fixture_scenarios. Allows you to build file fixtures from an object mother factory.
 
 Example
 =======
 
-Example goes here.
+When using an object mother such as factory_girl it can be setup like the following:
+
+FixtureBuilder.configure do |config|
+  config.factory do
+    include Girl
+    
+  end
+end
+
+The block passed to the factory method initiates the creation of the fixture files.
+
+There are also additional configuration options that can be changed to override the defaults:
+files_to_check: array of filenames that when changed cause fixtures to be rebuilt
+fixture_builder_file: the pathname of the file used to store file changes.
+record_name_fields: array of field names to use as a fixture's name prefix, it will use the first matching field it finds
+skip_tables: array of table names to skip building fixtures
+select_sql: sql string to use for select
+delete_sql: sql string to use for deletes
+
+By default these are set as:
+files_to_check: %w{ db/schema.rb }
+fixture_builder_file: RAILS_ROOT/tmp/fixture_builder.yml
+record_name_fields: %w{ schema_migrations }
+skip_tables: %w{ schema_migrations }
+select_sql: SELECT * FROM `%s`
+delete_sql: DELETE FROM `%s`
 
 
-Copyright (c) 2009 [name of plugin creator], released under the MIT license
+
+Copyright (c) 2009 Ryan Dy, released under the MIT license
