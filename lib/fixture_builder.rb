@@ -159,7 +159,10 @@ module FixtureBuilder
 
     def file_hashes
       files_to_check.inject({}) do |hash, filename|
-        hash[filename] = MD5.md5(File.read(File.join(RAILS_ROOT, filename))).to_s
+        begin
+          hash[filename] = MD5.md5(File.read(File.join(RAILS_ROOT, filename))).to_s
+        rescue Exception => e
+        end
         hash
       end
     end
