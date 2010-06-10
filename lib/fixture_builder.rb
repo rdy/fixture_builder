@@ -28,7 +28,7 @@ module FixtureBuilder
     end
 
     def skip_tables
-      @skip_table ||= %w{ schema_migrations }
+      @skip_tables ||= %w{ schema_migrations }
     end
 
     def files_to_check
