@@ -49,15 +49,26 @@ module FixtureBuilder
       @fixture_builder_file ||= Rails.root.join('tmp', 'fixture_builder.yml')
     end
 
-    def factory
+    def factory(&block)
       return unless rebuild_fixtures?
       say "Building fixtures"
       delete_tables
-      surface_errors { yield }
+      surface_errors { instance_eval(&block) }
       FileUtils.rm_rf(Rails.root.join(spec_or_test_dir, 'fixtures', '*.yml'))
       dump_empty_fixtures_for_all_tables
       dump_tables
       write_config
+    end
+
+    def name(custom_name, *model_objects)
+      raise "Cannot name an object blank" unless custom_name.present?
+      model_objects.each do |model_object|
+        raise "Cannot name a blank object" unless model_object.present?        
+        key = [model_object.class.table_name, model_object.id]
+        raise "Cannot set name for #{key.inspect} object twice" if @custom_names[key]
+        @custom_names[key] = custom_name
+        model_object
+      end
     end
 
     private
@@ -85,12 +96,6 @@ module FixtureBuilder
       ActiveRecord::Base.connection.tables - skip_tables
     end
 
-    def name(custom_name, model_object)
-      key = [model_object.class.name, model_object.id]
-      @custom_names[key] = custom_name
-      model_object
-    end
-
     def names_from_ivars!
       instance_values.each do |var, value|
         name(var, value) if value.is_a? ActiveRecord::Base
@@ -98,7 +103,7 @@ module FixtureBuilder
     end
 
     def record_name(record_hash)
-      key = [@table_name.classify, record_hash['id'].to_i]
+      key = [@table_name, record_hash['id'].to_i]
       @record_names << (name = @custom_names[key] || inferred_record_name(record_hash) )
       name
     end
@@ -149,7 +154,7 @@ module FixtureBuilder
       fixtures_dir("#{@table_name}.yml")
     end
 
-    def fixtures_dir(path)
+    def fixtures_dir(path = '')
       File.join(RAILS_ROOT, spec_or_test_dir, 'fixtures', path)
     end
 
@@ -159,10 +164,7 @@ module FixtureBuilder
 
     def file_hashes
       files_to_check.inject({}) do |hash, filename|
-        begin
-          hash[filename] = MD5.md5(File.read(File.join(RAILS_ROOT, filename))).to_s
-        rescue Exception => e
-        end
+        hash[filename] = MD5.new(File.read(filename)).to_s
         hash
       end
     end
@@ -173,6 +175,7 @@ module FixtureBuilder
     end
 
     def write_config
+      FileUtils.mkdir_p(File.dirname(fixture_builder_file))
       File.open(fixture_builder_file, 'w') {|f| f.write(YAML.dump(@file_hashes))}
     end
 
