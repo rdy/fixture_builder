@@ -53,6 +53,7 @@ module FixtureBuilder
       return unless rebuild_fixtures?
       say "Building fixtures"
       delete_tables
+      delete_yml_files
       surface_errors { instance_eval(&block) }
       FileUtils.rm_rf(Rails.root.join(spec_or_test_dir, 'fixtures', '*.yml'))
       dump_empty_fixtures_for_all_tables
@@ -63,7 +64,7 @@ module FixtureBuilder
     def name(custom_name, *model_objects)
       raise "Cannot name an object blank" unless custom_name.present?
       model_objects.each do |model_object|
-        raise "Cannot name a blank object" unless model_object.present?        
+        raise "Cannot name a blank object" unless model_object.present?
         key = [model_object.class.table_name, model_object.id]
         raise "Cannot set name for #{key.inspect} object twice" if @custom_names[key]
         @custom_names[key] = custom_name
@@ -90,6 +91,10 @@ module FixtureBuilder
 
     def delete_tables
       tables.each { |t| ActiveRecord::Base.connection.delete(delete_sql % t)  }
+    end
+
+    def delete_yml_files
+      FileUtils.rm(Dir.glob(fixtures_dir('*.yml')))
     end
 
     def tables
