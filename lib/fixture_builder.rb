@@ -19,6 +19,14 @@ module FixtureBuilder
       @file_hashes = file_hashes
     end
 
+    def include(*args)
+      class_eval do
+        args.each do |arg|
+          include arg
+        end
+      end
+    end
+
     def select_sql
       @select_sql ||= "SELECT * FROM `%s`"
     end
