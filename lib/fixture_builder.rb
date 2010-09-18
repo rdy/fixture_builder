@@ -12,7 +12,7 @@ module FixtureBuilder
   end
 
   class Configuration
-    attr_accessor :select_sql, :delete_sql, :skip_tables, :files_to_check, :record_name_fields, :fixture_builder_file
+    attr_accessor :select_sql, :delete_sql, :skip_tables, :files_to_check, :record_name_fields, :fixture_builder_file, :after_build
 
     def initialize
       @custom_names = {}
@@ -28,11 +28,11 @@ module FixtureBuilder
     end
 
     def select_sql
-      @select_sql ||= "SELECT * FROM `%s`"
+      @select_sql ||= "SELECT * FROM %s"
     end
 
     def delete_sql
-      @delete_sql ||= "DELETE FROM `%s`"
+      @delete_sql ||= "DELETE FROM %s"
     end
 
     def skip_tables
@@ -67,6 +67,7 @@ module FixtureBuilder
       dump_empty_fixtures_for_all_tables
       dump_tables
       write_config
+      after_build.call if after_build
     end
 
     def name(custom_name, *model_objects)
@@ -98,7 +99,7 @@ module FixtureBuilder
     end
 
     def delete_tables
-      tables.each { |t| ActiveRecord::Base.connection.delete(delete_sql % t)  }
+      tables.each { |t| ActiveRecord::Base.connection.delete(delete_sql % ActiveRecord::Base.connection.quote_table_name(t)) }
     end
 
     def delete_yml_files
@@ -117,15 +118,16 @@ module FixtureBuilder
 
     def record_name(record_hash)
       key = [@table_name, record_hash['id'].to_i]
-      @record_names << (name = @custom_names[key] || inferred_record_name(record_hash) )
-      name
+      @record_names << (name = @custom_names[key] || inferred_record_name(record_hash))
+      name.to_s
     end
 
     def inferred_record_name(record_hash)
       record_name_fields.each do |try|
         if name = record_hash[try]
           inferred_name = name.underscore.gsub(/\W/, ' ').squeeze(' ').tr(' ', '_')
-          count = @record_names.select { |name| name.starts_with?(inferred_name) }.size   # CHANGED == to starts_with?
+          count = @record_names.select { |name| name.starts_with?(inferred_name) }.size
+          # CHANGED == to starts_with?
           return count.zero? ? inferred_name : "#{inferred_name}_#{count}"
         end
       end
@@ -141,7 +143,12 @@ module FixtureBuilder
 
     def dump_tables
       fixtures = tables.inject([]) do |files, @table_name|
-        rows = ActiveRecord::Base.connection.select_all(select_sql % @table_name)
+        table_klass = @table_name.classify.constantize rescue nil
+        if table_klass
+          rows = table_klass.all.collect(&:attributes)
+        else
+          rows = ActiveRecord::Base.connection.select_all(select_sql % ActiveRecord::Base.connection.quote_table_name(@table_name))
+        end
         next files if rows.empty?
 
         @row_index      = '000'
@@ -168,11 +175,11 @@ module FixtureBuilder
     end
 
     def fixtures_dir(path = '')
-      File.join(RAILS_ROOT, spec_or_test_dir, 'fixtures', path)
+      File.join(Rails.root, spec_or_test_dir, 'fixtures', path)
     end
 
     def spec_or_test_dir
-      File.exists?(File.join(RAILS_ROOT, 'spec')) ? 'spec' : 'test'
+      File.exists?(File.join(Rails.root, 'spec')) ? 'spec' : 'test'
     end
 
     def file_hashes
@@ -189,7 +196,7 @@ module FixtureBuilder
 
     def write_config
       FileUtils.mkdir_p(File.dirname(fixture_builder_file))
-      File.open(fixture_builder_file, 'w') {|f| f.write(YAML.dump(@file_hashes))}
+      File.open(fixture_builder_file, 'w') { |f| f.write(YAML.dump(@file_hashes)) }
     end
 
     def rebuild_fixtures?
