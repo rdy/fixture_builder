@@ -6,7 +6,7 @@ Based on the code from fixture_scenarios, by Chris Wanstrath. Allows you to buil
 Installing
 ==========
 
- 1. Install the plugin
+ 1. Install as a plugin or gem:  `gem install fixture_builder`
  1. Create a file which configures and declares your fixtures (see below for example)
  1. Require the above file in your `spec_helper.rb` or `test_helper.rb`
 
@@ -15,10 +15,11 @@ Example
 =======
 
 When using an object mother such as factory_girl it can be setup like the following:
-
+    
+    # I usually put this file in spec/support/fixture_builder.rb
     FixtureBuilder.configure do |fbuilder|
       # rebuild fixtures automatically when these files change:
-      fbuilder.files_to_check += Dir["spec/factories/*.rb"]
+      fbuilder.files_to_check += Dir["spec/factories/*.rb", "spec/support/fixture_builder.rb"]
       
       # now declare objects
       fbuilder.factory do
@@ -33,12 +34,11 @@ The block passed to the factory method initiates the creation of the fixture fil
     # users.yml
     david: 
       created_at: 2010-09-18 17:21:23.926511 Z
-      updated_at: 2010-09-18 17:21:23.926511 Z
       unique_name: david
       id: 1
       
     # products.yml
-    ipod:
+    i_pod:
       name: iPod
       id: 1
       
@@ -69,6 +69,20 @@ By default these are set as:
  * skip_tables: %w{ schema_migrations }
  * select_sql: SELECT * FROM %s
  * delete_sql: DELETE FROM %s
+
+Sequence Collisions
+===================
+
+One problem with generating your fixtures is that sequences can collide.  When the fixtures are generated only as needed, sometimes the process that generates the fixtures will be different than the process that runs the tests.  This results in collisions when you still use factories in your tests.  Here's a solution for FactoryGirl which resets sequences numbers to 1000 (to avoid conflicts with fixture data which should e sequenced < 1000) before the tests run:
+
+    FixtureBuilder.configure do |fbuilder|
+      ...
+    end
+    
+    # Have factory girl generate non-colliding sequences starting at 1000 for data created after the fixtures 
+    Factory.sequences.each do |name, seq|
+      seq.instance_variable_set(:@value, 1000)
+    end
 
 
 
