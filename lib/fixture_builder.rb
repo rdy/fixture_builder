@@ -1,4 +1,8 @@
-require 'md5'
+begin
+  require 'md5'
+rescue Object => error
+  require 'digest/md5'
+end
 require 'fileutils'
 module FixtureBuilder
   class << self
@@ -136,13 +140,15 @@ module FixtureBuilder
     end
 
     def dump_empty_fixtures_for_all_tables
-      tables.each do |@table_name|
+      tables.each do |table_name|
+        @table_name = table_name
         write_fixture_file({})
       end
     end
 
     def dump_tables
-      fixtures = tables.inject([]) do |files, @table_name|
+      fixtures = tables.inject([]) do |files, table_name|
+        @table_name = table_name
         table_klass = @table_name.classify.constantize rescue nil
         if table_klass
           rows = table_klass.all.collect(&:attributes)
@@ -184,7 +190,11 @@ module FixtureBuilder
 
     def file_hashes
       files_to_check.inject({}) do |hash, filename|
-        hash[filename] = MD5.new(File.read(filename)).to_s
+        hash[filename] = begin
+          MD5.new(File.read(filename))
+        rescue Object => error
+          Digest::MD5.new(File.read(filename))
+        end.to_s
         hash
       end
     end
