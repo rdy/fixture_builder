@@ -1,8 +1,4 @@
-begin
-  require 'md5'
-rescue Object => error
-  require 'digest/md5'
-end
+require 'digest/md5'
 require 'fileutils'
 module FixtureBuilder
   class << self
@@ -190,11 +186,7 @@ module FixtureBuilder
 
     def file_hashes
       files_to_check.inject({}) do |hash, filename|
-        hash[filename] = begin
-          MD5.new(File.read(filename))
-        rescue Object => error
-          Digest::MD5.new(File.read(filename))
-        end.to_s
+        hash[filename] = Digest::MD5.hexdigest(File.read(filename))        
         hash
       end
     end
