@@ -5,25 +5,26 @@
 
 Gem::Specification.new do |s|
   s.name = %q{fixture_builder}
-  s.version = "0.0.0"
+  s.version = "0.2.0"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Ryan Dy", "David Stevenson"]
-  s.date = %q{2010-09-18}
+  s.date = %q{2010-10-20}
   s.description = %q{FixtureBuilder allows testers to use their existing factories, like FactoryGirl, to generate high performance fixtures that can be shared across all your tests}
   s.email = %q{stellar256@hotmail.com}
   s.extra_rdoc_files = [
-    "README"
+    "README.markdown"
   ]
   s.files = [
-    "MIT-LICENSE",
-     "README",
+    ".gitignore",
+     "MIT-LICENSE",
+     "README.markdown",
      "Rakefile",
      "VERSION",
      "fixture_builder.gemspec",
      "init.rb",
      "lib/fixture_builder.rb",
-     "tasks/fixture_builder.rake",
+     "lib/tasks/fixture_builder.rake",
      "test/fixture_builder_test.rb",
      "test/test_helper.rb"
   ]
