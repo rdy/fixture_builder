@@ -14,6 +14,8 @@ module FixtureBuilder
   class Configuration
     attr_accessor :select_sql, :delete_sql, :skip_tables, :files_to_check, :record_name_fields, :fixture_builder_file, :after_build
 
+    SCHEMA_FILES = ['db/schema.rb', 'db/development_structure.sql', 'db/test_structure.sql', 'db/production_structure.sql']
+
     def initialize
       @custom_names = {}
       @file_hashes = file_hashes
@@ -40,7 +42,14 @@ module FixtureBuilder
     end
 
     def files_to_check
-      @files_to_check ||= %w{ db/schema.rb }
+      @files_to_check ||= schema_definition_files
+    end
+
+    def schema_definition_files
+      Dir['db/*'].inject([]) do |result, file|
+        result << file if SCHEMA_FILES.include?(file)
+        result
+      end
     end
 
     def files_to_check=(files)
