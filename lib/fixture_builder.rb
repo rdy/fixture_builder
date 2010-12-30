@@ -147,7 +147,7 @@ module FixtureBuilder
         @table_name = table_name
         table_klass = @table_name.classify.constantize rescue nil
         if table_klass
-          rows = table_klass.all.collect(&:attributes)
+          rows = table_klass.unscoped.all.collect(&:attributes)
         else
           rows = ActiveRecord::Base.connection.select_all(select_sql % ActiveRecord::Base.connection.quote_table_name(@table_name))
         end
