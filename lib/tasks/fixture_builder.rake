@@ -7,18 +7,13 @@ namespace :spec do
       puts "Automatically generated fixtures removed"
     end
 
-    # These tasks don't work properly in rspec2 yet, removing for now
-    # desc "Build the generated fixtures to spec/fixtures if dirty"
-    # task :build do
-    #   puts "Building automatically generated fixtures..."
-    #   raise "Could not rebuild fixtures by running empty specs, look in /tmp/nothing.spec.out" unless system("rake spec:nothing > /tmp/nothing.spec.out")
-    # end
-    # 
-    # desc "Clean and rebuild the generated fixtures to spec/fixtures"
-    # task :rebuild => [:clean, :build]
-  end
+    desc "Build the generated fixtures to spec/fixtures if dirty"
+    task :build => :environment do
+      ActiveRecord::Base.establish_connection('test')
+      Dir.glob(File.join(Rails.root, '{spec,test}', '**', 'fixture_builder.rb')).each{|file| require(file)}
+    end
 
-  # Spec::Rake::SpecTask.new(:nothing) do |t|
-  #   t.spec_files = FileList["spec/spec_helper.rb"]
-  # end
+    desc "Clean and rebuild the generated fixtures to spec/fixtures"
+    task :rebuild => [:clean, :build]
+  end
 end

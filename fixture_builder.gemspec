@@ -22,7 +22,6 @@ Gem::Specification.new do |s|
      "Rakefile",
      "VERSION",
      "fixture_builder.gemspec",
-     "init.rb",
      "lib/fixture_builder.rb",
      "lib/tasks/fixture_builder.rake",
      "test/fixture_builder_test.rb",
