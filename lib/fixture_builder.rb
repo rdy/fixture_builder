@@ -214,4 +214,10 @@ module FixtureBuilder
       @file_hashes != read_config
     end
   end
+
+  class Railtie < Rails::Railtie
+    rake_tasks do
+      load "tasks/fixture_builder.rake"
+    end
+  end
 end
