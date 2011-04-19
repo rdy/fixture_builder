@@ -135,7 +135,7 @@ module FixtureBuilder
       record_name_fields.each do |try|
         if name = record_hash[try]
           inferred_name = name.underscore.gsub(/\W/, ' ').squeeze(' ').tr(' ', '_')
-          count = @record_names.select { |name| name.starts_with?(inferred_name) }.size
+          count = @record_names.select { |name| name.to_s.starts_with?(inferred_name) }.size
           # CHANGED == to starts_with?
           return count.zero? ? inferred_name : "#{inferred_name}_#{count}"
         end
