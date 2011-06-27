@@ -1,14 +1,14 @@
-require File.expand_path(File.join(File.dirname(__FILE__), "test_helper"))
+require File.expand_path(File.join(File.dirname(__FILE__), 'test_helper'))
 
 class Model
   def self.table_name
-    "models"
+    'models'
   end
 end
 
 class FixtureBuilderTest < Test::Unit::TestCase
   def setup
-    FixtureBuilder.configuration.instance_variable_set(:'@row_index', "000")
+    FixtureBuilder.configuration.instance_variable_set(:'@row_index', '000')
     FixtureBuilder.configuration.instance_variable_set(:'@record_names', [])
   end
 
@@ -26,14 +26,14 @@ class FixtureBuilderTest < Test::Unit::TestCase
 
   def test_name_with
     hash = {
-      "id" => 1,
-      "email" => "bob@example.com"
+      'id' => 1,
+      'email' => 'bob@example.com'
     }
     FixtureBuilder.configure do |config|
       config.name_model_with Model do |record_hash, index|
-        [record_hash['email'].split("@").first, index].join("_")
+        [record_hash['email'].split('@').first, index].join('_')
       end
     end
-    assert_equal "bob_001", FixtureBuilder.configuration.send(:record_name, hash, Model.table_name)
+    assert_equal 'bob_001', FixtureBuilder.configuration.send(:record_name, hash, Model.table_name)
   end
 end

@@ -6,10 +6,8 @@ PATH
 GEM
   remote: http://rubygems.org/
   specs:
-    ansi (1.2.5)
     rake (0.8.7)
-    turn (0.8.2)
-      ansi (>= 1.2.2)
+    test-unit (2.3.0)
 
 PLATFORMS
   ruby
@@ -17,4 +15,4 @@ PLATFORMS
 DEPENDENCIES
   fixture_builder!
   rake (= 0.8.7)
-  turn
+  test-unit
