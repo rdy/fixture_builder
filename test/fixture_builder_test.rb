@@ -1,5 +1,11 @@
 require File.expand_path(File.join(File.dirname(__FILE__), 'test_helper'))
 
+class Rails
+  def self.root
+    File.join(File.dirname(__FILE__), '..')
+  end
+end
+
 class Model
   def self.table_name
     'models'
@@ -35,5 +41,30 @@ class FixtureBuilderTest < Test::Unit::TestCase
       end
     end
     assert_equal 'bob_001', FixtureBuilder.configuration.send(:record_name, hash, Model.table_name)
+  end
+
+  def test_record_name_without_name_with_or_custom_name
+    hash = {
+      'id' => 1,
+      'email' => 'bob@example.com'
+    }
+    assert_equal 'models_001', FixtureBuilder.configuration.send(:record_name, hash, Model.table_name)
+  end
+
+  def test_record_name_with_inferred_record_name
+    hash = {
+      'id' => 1,
+      'title' => 'foo',
+      'email' => 'bob@example.com'
+    }
+    assert_equal 'foo', FixtureBuilder.configuration.send(:record_name, hash, Model.table_name)
+  end
+
+  def test_spec_or_test_dir
+    assert_equal 'test', FixtureBuilder.configuration.send(:spec_or_test_dir)
+  end
+
+  def test_fixtures_dir
+    assert_match /test\/fixtures$/, FixtureBuilder.configuration.send(:fixtures_dir).to_s
   end
 end

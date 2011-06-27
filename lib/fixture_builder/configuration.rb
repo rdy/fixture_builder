@@ -1,3 +1,4 @@
+require 'active_support/core_ext/string/inflections'
 require 'digest/md5'
 require 'fileutils'
 
@@ -9,6 +10,7 @@ module FixtureBuilder
 
     def initialize
       @custom_names = {}
+      @model_name_procs = {}
       @file_hashes = file_hashes
     end
 
@@ -54,7 +56,7 @@ module FixtureBuilder
     end
 
     def fixture_builder_file
-      @fixture_builder_file ||= Rails.root.join('tmp', 'fixture_builder.yml')
+      @fixture_builder_file ||= ::Rails.root.join('tmp', 'fixture_builder.yml')
     end
 
     def factory(&block)
@@ -63,7 +65,7 @@ module FixtureBuilder
       delete_tables
       delete_yml_files
       surface_errors { instance_eval(&block) }
-      FileUtils.rm_rf(Rails.root.join(spec_or_test_dir, 'fixtures', '*.yml'))
+      FileUtils.rm_rf(::Rails.root.join(spec_or_test_dir, 'fixtures', '*.yml'))
       dump_empty_fixtures_for_all_tables
       dump_tables
       write_config
@@ -71,8 +73,7 @@ module FixtureBuilder
     end
 
     def name_model_with(model_class, &block)
-      @model_namers ||= {}
-      @model_namers[model_class.table_name] = block
+      @model_name_procs[model_class.table_name] = block
     end
 
     def name(custom_name, *model_objects)
@@ -118,13 +119,13 @@ module FixtureBuilder
     def record_name(record_hash, table_name)
       key = [table_name, record_hash['id'].to_i]
       name = case
-        when namer = @model_namers[table_name]
-          namer.call(record_hash, @row_index.succ!)
-        when custom = @custom_names[key]
-          custom
-        else
-          inferred_record_name(record_hash)
-        end
+      when name_proc = @model_name_procs[table_name]
+        name_proc.call(record_hash, @row_index.succ!)
+      when custom = @custom_names[key]
+        custom
+      else
+        inferred_record_name(record_hash, table_name)
+      end
       @record_names << name
       name.to_s
     end
@@ -138,8 +139,7 @@ module FixtureBuilder
           return count.zero? ? inferred_name : "#{inferred_name}_#{count}"
         end
       end
-
-      "#{table_name}_#{@row_index.succ!}"
+      [table_name, @row_index.succ!].join('_')
     end
 
     def dump_empty_fixtures_for_all_tables
@@ -163,10 +163,9 @@ module FixtureBuilder
         fixture_data = rows.inject({}) do |hash, record|
           hash.merge(record_name(record, table_name) => record)
         end
+        write_fixture_file fixture_data, table_name
 
-        write_fixture_file fixture_data
-
-        files + [File.basename(fixture_file)]
+        files + [File.basename(fixture_file(table_name))]
       end
       say "Built #{fixtures.to_sentence}"
     end
@@ -182,11 +181,11 @@ module FixtureBuilder
     end
 
     def fixtures_dir(path = '')
-      File.join(Rails.root, spec_or_test_dir, 'fixtures', path)
+      File.expand_path(File.join(::Rails.root, spec_or_test_dir, 'fixtures', path))
     end
 
     def spec_or_test_dir
-      File.exists?(File.join(Rails.root, 'spec')) ? 'spec' : 'test'
+      File.exists?(File.join(::Rails.root, 'spec')) ? 'spec' : 'test'
     end
 
     def file_hashes
