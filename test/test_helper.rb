@@ -1,3 +1,5 @@
 require 'rubygems'
-require 'active_support'
-require 'active_support/test_case'
+require 'bundler/setup'
+require 'test/unit'
+require 'turn'
+require 'fixture_builder'
