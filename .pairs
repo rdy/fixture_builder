@@ -1,6 +1,9 @@
 pairs:
   rd: Ryan Dy
   js: Josh Susser; jsusser
+  tb: Thomas Bukowski; tbukowski
+  dc: Dennis Collinson
+
 email:
   prefix: pair
   domain: pivotallabs.com
