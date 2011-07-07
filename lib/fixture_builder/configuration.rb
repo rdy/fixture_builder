@@ -8,7 +8,10 @@ module FixtureBuilder
 
     SCHEMA_FILES = ['db/schema.rb', 'db/development_structure.sql', 'db/test_structure.sql', 'db/production_structure.sql']
 
-    def initialize
+    def initialize(opts={})
+      @legacy_fixtures = Dir.glob(opts[:legacy_fixtures].to_a)
+      self.files_to_check += @legacy_fixtures
+
       @custom_names = {}
       @model_name_procs = {}
       @file_hashes = file_hashes
@@ -64,6 +67,7 @@ module FixtureBuilder
       say "Building fixtures"
       delete_tables
       delete_yml_files
+      load_legacy_fixtures if @legacy_fixtures.any?
       surface_errors { instance_eval(&block) }
       FileUtils.rm_rf(::Rails.root.join(spec_or_test_dir, 'fixtures', '*.yml'))
       dump_empty_fixtures_for_all_tables
@@ -88,6 +92,23 @@ module FixtureBuilder
     end
 
     private
+
+    def load_legacy_fixtures
+      @legacy_fixtures.each do |fixture_file|
+        fixtures = ::Fixtures.create_fixtures(File.dirname(fixture_file), File.basename(fixture_file, '.*'))
+        populate_custom_names(fixtures)
+      end
+    end
+
+    def populate_custom_names(fixtures)
+      fixtures.each do |fixture|
+        name = fixture[0]
+        id = fixture[1]['id'].to_i
+        table_name = fixture[1].model_class.table_name
+        key = [table_name, id]
+        @custom_names[key] = name
+      end
+    end
 
     def say(*messages)
       puts messages.map { |message| "=> #{message}" }
@@ -158,7 +179,7 @@ module FixtureBuilder
         end
         next files if rows.empty?
 
-        @row_index      = '000'
+        @row_index = '000'
         @record_names = []
         fixture_data = rows.inject({}) do |hash, record|
           hash.merge(record_name(record, table_name) => record)

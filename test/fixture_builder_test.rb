@@ -1,11 +1,5 @@
 require File.expand_path(File.join(File.dirname(__FILE__), 'test_helper'))
 
-class Rails
-  def self.root
-    File.join(File.dirname(__FILE__), '..')
-  end
-end
-
 class Model
   def self.table_name
     'models'

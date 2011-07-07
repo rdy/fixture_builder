@@ -1,0 +1,12 @@
+bigfoot:
+  name: bigfoot
+  id: 5
+
+alice_the_mermaid:
+  name: alice
+  species: mermaid
+  id: 300
+
+xou_the_dragon:
+  name: xou
+  species: dragon

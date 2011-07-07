@@ -2,12 +2,12 @@ require 'fixture_builder/configuration'
 
 module FixtureBuilder
   class << self
-    def configuration
-      @configuration ||= FixtureBuilder::Configuration.new
+    def configuration(opts = {})
+      @configuration ||= FixtureBuilder::Configuration.new(opts)
     end
 
-    def configure
-      yield configuration
+    def configure(opts = {})
+      yield configuration(opts)
     end
   end
 
