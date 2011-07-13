@@ -33,7 +33,6 @@ PLATFORMS
 
 DEPENDENCIES
   active_support (>= 3.0)
-  activerecord
   fixture_builder!
   rake (= 0.8.7)
   sqlite3

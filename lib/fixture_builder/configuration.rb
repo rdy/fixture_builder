@@ -4,7 +4,9 @@ require 'fileutils'
 
 module FixtureBuilder
   class Configuration
-    attr_accessor :select_sql, :delete_sql, :skip_tables, :files_to_check, :record_name_fields, :fixture_builder_file, :after_build
+    ACCESSIBLE_ATTRIBUTES = [:select_sql, :delete_sql, :skip_tables, :files_to_check, :record_name_fields,
+                             :fixture_builder_file, :after_build, :legacy_fixtures, :model_name_procs]
+    attr_accessor *ACCESSIBLE_ATTRIBUTES
 
     SCHEMA_FILES = ['db/schema.rb', 'db/development_structure.sql', 'db/test_structure.sql', 'db/production_structure.sql']
 
@@ -12,7 +14,6 @@ module FixtureBuilder
       @legacy_fixtures = Dir.glob(opts[:legacy_fixtures].to_a)
       self.files_to_check += @legacy_fixtures
 
-      @custom_names = {}
       @model_name_procs = {}
       @file_hashes = file_hashes
     end
@@ -23,6 +24,16 @@ module FixtureBuilder
           include arg
         end
       end
+    end
+
+    def factory(&block)
+      return unless rebuild_fixtures?
+      @builder = Builder.new(self, block).generate!
+      write_config
+    end
+
+    def custom_names
+      @builder.custom_names
     end
 
     def select_sql
@@ -62,20 +73,6 @@ module FixtureBuilder
       @fixture_builder_file ||= ::Rails.root.join('tmp', 'fixture_builder.yml')
     end
 
-    def factory(&block)
-      return unless rebuild_fixtures?
-      say "Building fixtures"
-      delete_tables
-      delete_yml_files
-      load_legacy_fixtures if @legacy_fixtures.any?
-      surface_errors { instance_eval(&block) }
-      FileUtils.rm_rf(::Rails.root.join(spec_or_test_dir, 'fixtures', '*.yml'))
-      dump_empty_fixtures_for_all_tables
-      dump_tables
-      write_config
-      after_build.call if after_build
-    end
-
     def name_model_with(model_class, &block)
       @model_name_procs[model_class.table_name] = block
     end
@@ -85,125 +82,21 @@ module FixtureBuilder
       model_objects.each do |model_object|
         raise "Cannot name a blank object" unless model_object.present?
         key = [model_object.class.table_name, model_object.id]
-        raise "Cannot set name for #{key.inspect} object twice" if @custom_names[key]
-        @custom_names[key] = custom_name
+        raise "Cannot set name for #{key.inspect} object twice" if custom_names[key]
+        custom_names[key] = custom_name
         model_object
       end
-    end
-
-    private
-
-    def load_legacy_fixtures
-      @legacy_fixtures.each do |fixture_file|
-        fixtures = ::Fixtures.create_fixtures(File.dirname(fixture_file), File.basename(fixture_file, '.*'))
-        populate_custom_names(fixtures)
-      end
-    end
-
-    def populate_custom_names(fixtures)
-      fixtures.each do |fixture|
-        name = fixture[0]
-        id = fixture[1]['id'].to_i
-        table_name = fixture[1].model_class.table_name
-        key = [table_name, id]
-        @custom_names[key] = name
-      end
-    end
-
-    def say(*messages)
-      puts messages.map { |message| "=> #{message}" }
-    end
-
-    def surface_errors
-      yield
-    rescue Object => error
-      puts
-      say "There was an error building fixtures", error.inspect
-      puts
-      puts error.backtrace
-      puts
-      exit!
-    end
-
-    def delete_tables
-      tables.each { |t| ActiveRecord::Base.connection.delete(delete_sql % ActiveRecord::Base.connection.quote_table_name(t)) }
-    end
-
-    def delete_yml_files
-        FileUtils.rm(Dir.glob(fixtures_dir('*.yml'))) rescue nil
     end
 
     def tables
       ActiveRecord::Base.connection.tables - skip_tables
     end
 
-    def record_name(record_hash, table_name)
-      key = [table_name, record_hash['id'].to_i]
-      name = case
-      when name_proc = @model_name_procs[table_name]
-        name_proc.call(record_hash, @row_index.succ!)
-      when custom = @custom_names[key]
-        custom
-      else
-        inferred_record_name(record_hash, table_name)
-      end
-      @record_names << name
-      name.to_s
-    end
-
-    def inferred_record_name(record_hash, table_name)
-      record_name_fields.each do |try|
-        if name = record_hash[try]
-          inferred_name = name.underscore.gsub(/\W/, ' ').squeeze(' ').tr(' ', '_')
-          count = @record_names.select { |name| name.to_s.starts_with?(inferred_name) }.size
-          # CHANGED == to starts_with?
-          return count.zero? ? inferred_name : "#{inferred_name}_#{count}"
-        end
-      end
-      [table_name, @row_index.succ!].join('_')
-    end
-
-    def dump_empty_fixtures_for_all_tables
-      tables.each do |table_name|
-        write_fixture_file({}, table_name)
-      end
-    end
-
-    def dump_tables
-      fixtures = tables.inject([]) do |files, table_name|
-        table_klass = table_name.classify.constantize rescue nil
-        if table_klass
-          rows = table_klass.all.collect(&:attributes)
-        else
-          rows = ActiveRecord::Base.connection.select_all(select_sql % ActiveRecord::Base.connection.quote_table_name(table_name))
-        end
-        next files if rows.empty?
-
-        @row_index = '000'
-        @record_names = []
-        fixture_data = rows.inject({}) do |hash, record|
-          hash.merge(record_name(record, table_name) => record)
-        end
-        write_fixture_file fixture_data, table_name
-
-        files + [File.basename(fixture_file(table_name))]
-      end
-      say "Built #{fixtures.to_sentence}"
-    end
-
-    def write_fixture_file(fixture_data, table_name)
-      File.open(fixture_file(table_name), 'w') do |file|
-        file.write fixture_data.to_yaml
-      end
-    end
-
-    def fixture_file(table_name)
-      fixtures_dir("#{table_name}.yml")
-    end
-
     def fixtures_dir(path = '')
       File.expand_path(File.join(::Rails.root, spec_or_test_dir, 'fixtures', path))
     end
+
+    private
 
     def spec_or_test_dir
       File.exists?(File.join(::Rails.root, 'spec')) ? 'spec' : 'test'

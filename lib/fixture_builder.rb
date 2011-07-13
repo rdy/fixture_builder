@@ -1,4 +1,5 @@
 require 'fixture_builder/configuration'
+require 'fixture_builder/builder'
 
 module FixtureBuilder
   class << self
