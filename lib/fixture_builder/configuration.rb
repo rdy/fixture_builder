@@ -4,6 +4,8 @@ require 'fileutils'
 
 module FixtureBuilder
   class Configuration
+    include NamerDelegations
+
     ACCESSIBLE_ATTRIBUTES = [:select_sql, :delete_sql, :skip_tables, :files_to_check, :record_name_fields,
                              :fixture_builder_file, :after_build, :legacy_fixtures, :model_name_procs]
     attr_accessor *ACCESSIBLE_ATTRIBUTES
@@ -14,7 +16,7 @@ module FixtureBuilder
       @legacy_fixtures = Dir.glob(opts[:legacy_fixtures].to_a)
       self.files_to_check += @legacy_fixtures
 
-      @model_name_procs = {}
+      @namer = Namer.new(self)
       @file_hashes = file_hashes
     end
 
@@ -28,12 +30,8 @@ module FixtureBuilder
 
     def factory(&block)
       return unless rebuild_fixtures?
-      @builder = Builder.new(self, block).generate!
+      @builder = Builder.new(self, @namer, block).generate!
       write_config
-    end
-
-    def custom_names
-      @builder.custom_names
     end
 
     def select_sql
@@ -74,18 +72,7 @@ module FixtureBuilder
     end
 
     def name_model_with(model_class, &block)
-      @model_name_procs[model_class.table_name] = block
-    end
-
-    def name(custom_name, *model_objects)
-      raise "Cannot name an object blank" unless custom_name.present?
-      model_objects.each do |model_object|
-        raise "Cannot name a blank object" unless model_object.present?
-        key = [model_object.class.table_name, model_object.id]
-        raise "Cannot set name for #{key.inspect} object twice" if custom_names[key]
-        custom_names[key] = custom_name
-        model_object
-      end
+      @namer.name_model_with(model_class, &block)
     end
 
     def tables
@@ -121,6 +108,18 @@ module FixtureBuilder
 
     def rebuild_fixtures?
       @file_hashes != read_config
+    end
+  end
+
+  module ConfigurationDelegations
+    def fixtures_dir *args
+      @configuration.fixtures_dir(*args)
+    end
+
+    ([:tables, :legacy_fixtures] + [Configuration::ACCESSIBLE_ATTRIBUTES]).flatten.each do |meth|
+      define_method(meth) do
+        @configuration.send(meth)
+      end
     end
   end
 end

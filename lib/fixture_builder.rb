@@ -1,3 +1,4 @@
+require 'fixture_builder/namer'
 require 'fixture_builder/configuration'
 require 'fixture_builder/builder'
 
