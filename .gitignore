@@ -1,3 +1,4 @@
 pkg/
 .pairs
 .idea/workspace.xml
+Gemfile.lock

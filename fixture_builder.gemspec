@@ -23,7 +23,7 @@ Gem::Specification.new do |s|
   s.rubyforge_project = %q{fixture_builder}
   s.summary = %q{Build YAML fixtures using object factories}
 
-  s.add_dependency(%q{active_support})
+  s.add_dependency(%q{activesupport}, '>= 2')
   s.add_development_dependency(%q{rake}, '0.8.7')
   s.add_development_dependency(%q{test-unit})
 end
