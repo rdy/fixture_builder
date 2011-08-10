@@ -1,7 +1,8 @@
 module FixtureBuilder
   class Namer
+    include Delegations::Configuration
+
     def initialize(configuration)
-      self.extend(ConfigurationDelegations) #easiest hack to solve load order problem
       @configuration = configuration
       @custom_names = {}
       @model_name_procs = {}
@@ -58,24 +59,6 @@ module FixtureBuilder
         end
       end
       [table_name, row_index.succ!].join('_')
-    end
-  end
-
-  module NamerDelegations
-    def record_name(*args)
-      @namer.record_name(*args)
-    end
-
-    def populate_custom_names(*args)
-      @namer.populate_custom_names(*args)
-    end
-
-    def name(*args)
-      @namer.name(*args)
-    end
-
-    def name_model_with(*args)
-      @namer.name_model_with(*args)
     end
   end
 end

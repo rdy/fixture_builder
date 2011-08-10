@@ -1,7 +1,7 @@
 module FixtureBuilder
   class Builder
-    include ConfigurationDelegations
-    include NamerDelegations
+    include Delegations::Namer
+    include Delegations::Configuration
     
     def initialize(configuration, namer, builder_block)
       @configuration = configuration
@@ -20,7 +20,7 @@ module FixtureBuilder
     protected
 
     def create_fixture_objects
-      load_legacy_fixtures if legacy_fixtures.any?
+      load_legacy_fixtures if legacy_fixtures.present?
       surface_errors { instance_eval &@builder_block }
     end
 

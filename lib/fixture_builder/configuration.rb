@@ -4,18 +4,15 @@ require 'fileutils'
 
 module FixtureBuilder
   class Configuration
-    include NamerDelegations
+    include Delegations::Namer
 
     ACCESSIBLE_ATTRIBUTES = [:select_sql, :delete_sql, :skip_tables, :files_to_check, :record_name_fields,
                              :fixture_builder_file, :after_build, :legacy_fixtures, :model_name_procs]
-    attr_accessor *ACCESSIBLE_ATTRIBUTES
+    attr_accessor(*ACCESSIBLE_ATTRIBUTES)
 
     SCHEMA_FILES = ['db/schema.rb', 'db/development_structure.sql', 'db/test_structure.sql', 'db/production_structure.sql']
 
     def initialize(opts={})
-      @legacy_fixtures = Dir.glob(opts[:legacy_fixtures].to_a)
-      self.files_to_check += @legacy_fixtures
-
       @namer = Namer.new(self)
       @file_hashes = file_hashes
     end
@@ -29,6 +26,7 @@ module FixtureBuilder
     end
 
     def factory(&block)
+      self.files_to_check += @legacy_fixtures.to_a
       return unless rebuild_fixtures?
       @builder = Builder.new(self, @namer, block).generate!
       write_config
@@ -108,18 +106,6 @@ module FixtureBuilder
 
     def rebuild_fixtures?
       @file_hashes != read_config
-    end
-  end
-
-  module ConfigurationDelegations
-    def fixtures_dir *args
-      @configuration.fixtures_dir(*args)
-    end
-
-    ([:tables, :legacy_fixtures] + [Configuration::ACCESSIBLE_ATTRIBUTES]).flatten.each do |meth|
-      define_method(meth) do
-        @configuration.send(meth)
-      end
     end
   end
 end
