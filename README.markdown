@@ -51,7 +51,15 @@ FixtureBuilder guesses about how to name fixtures based on a prioritized list of
 
     fbuilder.name(:davids_ipod, Factory(:purchase, :user => david, :product => ipod))
     @davids_ipod = Factory(:purchase, :user => david, :product => ipod)
+    
+Another way to name fixtures is to use the name_model_with. To use it you create a block that returns how you want a certain model name based on the record field.
 
+    fbuilder.name_model_with(User) do |record|
+      [record['first_name'], record['last_name']].join('_')
+    end
+ 
+For all User fixture {first_name: 'foo', last_name: 'bar'} it would generate `foo_bar` as the fixture name.
+ 
 There are also additional configuration options that can be changed to override the defaults:
 
  * files_to_check: array of filenames that when changed cause fixtures to be rebuilt
