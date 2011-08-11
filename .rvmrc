@@ -1,1 +1,1 @@
-rvm 1.9.2@fixture_builder --create
+rvm ree@fixture_builder --create
