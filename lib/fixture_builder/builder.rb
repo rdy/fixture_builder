@@ -72,6 +72,8 @@ module FixtureBuilder
     end
 
     def dump_tables
+      default_date_format = Date::DATE_FORMATS[:default]
+      Date::DATE_FORMATS[:default] = Date::DATE_FORMATS[:db]
       fixtures = tables.inject([]) do |files, table_name|
         table_klass = table_name.classify.constantize rescue nil
         if table_klass
@@ -90,6 +92,7 @@ module FixtureBuilder
 
         files + [File.basename(fixture_file(table_name))]
       end
+      Date::DATE_FORMATS[:default] = default_date_format
       say "Built #{fixtures.to_sentence}"
     end
 
