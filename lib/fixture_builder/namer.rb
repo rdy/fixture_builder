@@ -6,7 +6,7 @@ module FixtureBuilder
       @configuration = configuration
       @custom_names = {}
       @model_name_procs = {}
-      @record_names = []
+      @record_names = {}
     end
 
     def name_model_with(model_class, &block)
@@ -44,7 +44,8 @@ module FixtureBuilder
                else
                  inferred_record_name(record_hash, table_name, row_index)
              end
-      @record_names << name
+      @record_names[table_name] ||= []
+      @record_names[table_name] << name
       name.to_s
     end
 
@@ -53,8 +54,11 @@ module FixtureBuilder
       record_name_fields.each do |try|
         if name = record_hash[try]
           inferred_name = name.underscore.gsub(/\W/, ' ').squeeze(' ').tr(' ', '_')
-          count = @record_names.select { |name| name.to_s.starts_with?(inferred_name) }.size
-            # CHANGED == to starts_with?
+          count = 0          
+          puts table_name
+          if @record_names[table_name]
+            count = @record_names[table_name].select {|name| name.to_s.starts_with?(inferred_name) }.size
+          end
           return count.zero? ? inferred_name : "#{inferred_name}_#{count}"
         end
       end
