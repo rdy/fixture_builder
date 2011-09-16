@@ -2,7 +2,7 @@ module FixtureBuilder
   class Builder
     include Delegations::Namer
     include Delegations::Configuration
-    
+
     def initialize(configuration, namer, builder_block)
       @configuration = configuration
       @namer = namer
@@ -72,23 +72,29 @@ module FixtureBuilder
     end
 
     def dump_tables
-      fixtures = tables.inject([]) do |files, table_name|
-        table_klass = table_name.classify.constantize rescue nil
-        if table_klass
-          rows = table_klass.all.collect(&:attributes)
-        else
-          rows = ActiveRecord::Base.connection.select_all(select_sql % ActiveRecord::Base.connection.quote_table_name(table_name))
+      default_date_format = Date::DATE_FORMATS[:default]
+      Date::DATE_FORMATS[:default] = Date::DATE_FORMATS[:db]
+      begin
+        fixtures = tables.inject([]) do |files, table_name|
+          table_klass = table_name.classify.constantize rescue nil
+          if table_klass
+            rows = table_klass.all.collect(&:attributes)
+          else
+            rows = ActiveRecord::Base.connection.select_all(select_sql % ActiveRecord::Base.connection.quote_table_name(table_name))
+          end
+          next files if rows.empty?
+
+          row_index = '000'
+          fixture_data = rows.inject({}) do |hash, record|
+            hash.merge(record_name(record, table_name, row_index) => record)
+          end
+
+          write_fixture_file fixture_data, table_name
+
+          files + [File.basename(fixture_file(table_name))]
         end
-        next files if rows.empty?
-
-        row_index = '000'
-        fixture_data = rows.inject({}) do |hash, record|
-          hash.merge(record_name(record, table_name, row_index) => record)
-        end
-
-        write_fixture_file fixture_data, table_name
-
-        files + [File.basename(fixture_file(table_name))]
+      ensure
+        Date::DATE_FORMATS[:default] = default_date_format
       end
       say "Built #{fixtures.to_sentence}"
     end
