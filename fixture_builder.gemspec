@@ -8,7 +8,6 @@ Gem::Specification.new do |s|
   s.platform    = Gem::Platform::RUBY
   s.required_rubygems_version = Gem::Requirement.new('>= 0') if s.respond_to? :required_rubygems_version=
   s.authors = ['Ryan Dy', 'David Stevenson']
-  s.date = %q{2011-04-29}
   s.description = %q{FixtureBuilder allows testers to use their existing factories, like FactoryGirl, to generate high performance fixtures that can be shared across all your tests}
   s.email = %q{mail@ryandy.com}
   s.extra_rdoc_files = [
