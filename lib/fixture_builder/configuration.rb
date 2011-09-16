@@ -1,4 +1,5 @@
-require 'active_support/core_ext/string/inflections'
+require 'active_support/core_ext'
+require 'active_support/core_ext/string'
 require 'digest/md5'
 require 'fileutils'
 
