@@ -55,7 +55,6 @@ module FixtureBuilder
         if name = record_hash[try]
           inferred_name = name.underscore.gsub(/\W/, ' ').squeeze(' ').tr(' ', '_')
           count = 0          
-          puts table_name
           if @record_names[table_name]
             count = @record_names[table_name].select {|name| name.to_s.starts_with?(inferred_name) }.size
           end
