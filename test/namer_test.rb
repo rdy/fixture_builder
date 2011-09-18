@@ -6,6 +6,12 @@ class Model
   end
 end
 
+class AnotherModel
+  def self.table_name
+    'another_models'
+  end
+end
+
 class NamerTest < Test::Unit::TestCase
   def setup
     configuration = FixtureBuilder::Configuration.new
@@ -40,5 +46,19 @@ class NamerTest < Test::Unit::TestCase
         'email' => 'bob@example.com'
     }
     assert_equal 'foo', @namer.record_name(hash, Model.table_name, '000')
+  end
+  
+  def test_name_not_unique_across_tables
+    hash = {
+      'id' => 1,
+      'title' => 'foo'
+    }
+    hash_with_same_title = {
+      'id' => 2,
+      'title' => 'foo'
+    }
+    assert_equal 'foo', @namer.record_name(hash, Model.table_name, '000')
+    assert_equal 'foo', @namer.record_name(hash, AnotherModel.table_name, '000')
+    assert_equal 'foo_1', @namer.record_name(hash_with_same_title, Model.table_name, '000')
   end
 end
