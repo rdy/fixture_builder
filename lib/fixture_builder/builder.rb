@@ -54,7 +54,9 @@ module FixtureBuilder
     end
 
     def delete_tables
-      tables.each { |t| ActiveRecord::Base.connection.delete(delete_sql % ActiveRecord::Base.connection.quote_table_name(t)) }
+      ActiveRecord::Base.connection.disable_referential_integrity do
+        tables.each { |t| ActiveRecord::Base.connection.delete(delete_sql % ActiveRecord::Base.connection.quote_table_name(t)) }
+      end
     end
 
     def delete_yml_files
