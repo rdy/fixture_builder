@@ -13,6 +13,25 @@ def test_path(glob)
   File.join(Rails.root, 'test', glob)
 end
 
+if defined?(ActiveRecord)
+  require 'active_record/test_case'
+
+  class ActiveSupport::TestCase
+    include ActiveRecord::TestFixtures
+    self.fixture_path = "#{Rails.root}/test/fixtures/"
+
+    setup do
+      ActiveRecord::IdentityMap.clear
+    end
+  end
+
+  ActionDispatch::IntegrationTest.fixture_path = ActiveSupport::TestCase.fixture_path
+
+  def create_fixtures(*table_names, &block)
+    Fixtures.create_fixtures(ActiveSupport::TestCase.fixture_path, table_names, {}, &block)
+  end
+end
+
 require "active_support/concern"
 require "active_record"
 require "sqlite3"
