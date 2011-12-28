@@ -1,7 +1,6 @@
 require 'rubygems'
 require 'bundler/setup'
 require 'test/unit'
-require 'fixture_builder'
 
 class Rails
   def self.root
@@ -13,29 +12,17 @@ def test_path(glob)
   File.join(Rails.root, 'test', glob)
 end
 
-if defined?(ActiveRecord)
-  require 'active_record/test_case'
+require 'active_support/concern'
+require 'active_record'
+require 'active_record/test_case'
+require 'active_record/fixtures'
 
-  class ActiveSupport::TestCase
-    include ActiveRecord::TestFixtures
-    self.fixture_path = "#{Rails.root}/test/fixtures/"
-
-    setup do
-      ActiveRecord::IdentityMap.clear
-    end
-  end
-
-  ActionDispatch::IntegrationTest.fixture_path = ActiveSupport::TestCase.fixture_path
-
-  def create_fixtures(*table_names, &block)
-    Fixtures.create_fixtures(ActiveSupport::TestCase.fixture_path, table_names, {}, &block)
-  end
+def create_fixtures(*table_names, &block)
+  Fixtures.create_fixtures(ActiveSupport::TestCase.fixture_path, table_names, {}, &block)
 end
 
-require "active_support/concern"
-require "active_record"
-require "sqlite3"
-require "active_record/fixtures"
+require 'sqlite3'
+require 'fixture_builder'
 
 class MagicalCreature < ActiveRecord::Base
   validates_presence_of :name, :species
