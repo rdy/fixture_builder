@@ -1,3 +1,8 @@
+begin
+  require 'rails/test_help'
+rescue LoadError, NameError
+end
+
 module FixtureBuilder
   class Builder
     include Delegations::Namer
