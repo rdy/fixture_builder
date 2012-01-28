@@ -18,6 +18,7 @@ module FixtureBuilder
       say "Building fixtures"
       clean_out_old_data
       create_fixture_objects
+      names_from_ivars!
       write_data_to_files
       after_build.call if after_build
     end
@@ -47,6 +48,12 @@ module FixtureBuilder
       puts error.backtrace
       puts
       exit!
+    end
+
+    def names_from_ivars!
+      instance_values.each do |var, value|
+        name(var, value) if value.is_a? ActiveRecord::Base
+      end
     end
 
     def write_data_to_files
