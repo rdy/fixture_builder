@@ -24,8 +24,15 @@ module FixtureBuilder
       end
     end
 
-    def populate_custom_names(fixtures)
-      fixtures.each do |fixture|
+    def populate_custom_names(created_fixtures)
+      # Rails 3.1+, create_fixtures returns an array of Fixtures objects
+      if not created_fixtures.first.is_a? Array
+        # merge all fixtures hashes
+        created_fixtures = created_fixtures.inject({}) { |hash, fixtures| hash.merge(fixtures.fixtures) }
+      end
+
+      # Rails 3.0 and earlier, create_fixtures returns an array of tuples
+      created_fixtures.each do |fixture|
         name = fixture[0]
         id = fixture[1]['id'].to_i
         table_name = fixture[1].model_class.table_name
@@ -54,7 +61,7 @@ module FixtureBuilder
       record_name_fields.each do |try|
         if name = record_hash[try]
           inferred_name = name.underscore.gsub(/\W/, ' ').squeeze(' ').tr(' ', '_')
-          count = 0          
+          count = 0
           if @record_names[table_name]
             count = @record_names[table_name].select {|name| name.to_s.starts_with?(inferred_name) }.size
           end
