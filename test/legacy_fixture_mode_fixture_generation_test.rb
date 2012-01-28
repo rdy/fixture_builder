@@ -1,17 +1,24 @@
 require File.expand_path(File.join(File.dirname(__FILE__), 'test_helper'))
 
-create_and_blow_away_old_db
-force_fixture_generation
-
-FixtureBuilder.configure do |fbuilder|
-  fbuilder.legacy_fixtures = Dir[test_path("legacy_fixtures/*.yml"), test_path("other_legacy_fixture_set/*.yml")] 
-  fbuilder.factory do
-    MagicalCreature.create(:name => "frank", :species => "unicorn")
-  end
-end
-
 class LegacyFixtureModeFixtureGenerationTest < Test::Unit::TestCase
-  @@magical_creatures = YAML.load(File.open(test_path("fixtures/magical_creatures.yml")))
+
+  def setup
+    create_and_blow_away_old_db
+    force_fixture_generation
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.legacy_fixtures = Dir[test_path("legacy_fixtures/*.yml"), test_path("other_legacy_fixture_set/*.yml")] 
+      fbuilder.factory do
+        MagicalCreature.create(:name => "frank", :species => "unicorn")
+      end
+    end
+
+    @@magical_creatures = YAML.load(File.open(test_path("fixtures/magical_creatures.yml")))
+  end
+
+  def teardown
+    FixtureBuilder.send(:remove_instance_variable, :@configuration)
+  end
 
   def test_legacy_fixtures_created
     alice = MagicalCreature.find_by_name("alice")

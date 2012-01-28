@@ -18,6 +18,7 @@ module FixtureBuilder
       say "Building fixtures"
       clean_out_old_data
       create_fixture_objects
+      names_from_ivars!
       write_data_to_files
       after_build.call if after_build
     end
@@ -31,7 +32,9 @@ module FixtureBuilder
 
     def load_legacy_fixtures
       legacy_fixtures.each do |fixture_file|
-        fixtures = ::Fixtures.create_fixtures(File.dirname(fixture_file), File.basename(fixture_file, '.*'))
+        # Rails 3.0 and 3.1+ support
+        fixtures_class = defined?(ActiveRecord::Fixtures) ? ActiveRecord::Fixtures : ::Fixtures
+        fixtures = fixtures_class.create_fixtures(File.dirname(fixture_file), File.basename(fixture_file, '.*'))
         populate_custom_names(fixtures)
       end
     end
@@ -45,6 +48,12 @@ module FixtureBuilder
       puts error.backtrace
       puts
       exit!
+    end
+
+    def names_from_ivars!
+      instance_values.each do |var, value|
+        name(var, value) if value.is_a? ActiveRecord::Base
+      end
     end
 
     def write_data_to_files
