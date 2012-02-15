@@ -12,6 +12,16 @@ class AnotherModel
   end
 end
 
+class MockFixture
+  def self.[](*args)
+    '1'
+  end
+
+  def self.model_class
+    Model
+  end
+end
+
 class NamerTest < Test::Unit::TestCase
   def setup
     configuration = FixtureBuilder::Configuration.new
@@ -60,5 +70,13 @@ class NamerTest < Test::Unit::TestCase
     assert_equal 'foo', @namer.record_name(hash, Model.table_name, '000')
     assert_equal 'foo', @namer.record_name(hash, AnotherModel.table_name, '000')
     assert_equal 'foo_1', @namer.record_name(hash_with_same_title, Model.table_name, '000')
+  end
+
+  def test_populate_custom_names_for_rails_30_and_earlier
+    mock_fixtures = {
+      'foo' => MockFixture
+    }
+    @namer.populate_custom_names(mock_fixtures)
+    assert_equal 'foo', @namer.record_name(MockFixture, Model.table_name, '1')
   end
 end

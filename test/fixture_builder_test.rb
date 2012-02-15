@@ -25,6 +25,21 @@ class FixtureBuilderTest < Test::Unit::TestCase
     assert_equal 'bob_001', FixtureBuilder.configuration.send(:record_name, hash, Model.table_name, '000')
   end
 
+  def test_ivar_naming
+    create_and_blow_away_old_db
+    force_fixture_generation
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.factory do
+        @king_of_gnomes = MagicalCreature.create(:name => 'robert', :species => 'gnome')
+      end
+    end
+    generated_fixture = YAML.load(File.open(test_path("fixtures/magical_creatures.yml")))
+    assert_equal 'king_of_gnomes', generated_fixture.keys.first
+  end
+
+
   def test_configure
     FixtureBuilder.configure do |config|
       assert config.is_a?(FixtureBuilder::Configuration)
