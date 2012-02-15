@@ -1,6 +1,8 @@
 FixtureBuilder
 ==============
 
+[![Build Status](https://secure.travis-ci.org/rdy/fixture_builder.png)](http://travis-ci.org/rdy/fixture_builder)
+
 Based on the code from fixture_scenarios, by Chris Wanstrath. Allows you to build file fixtures from an object mother factory.
 
 Installing
@@ -15,12 +17,12 @@ Example
 =======
 
 When using an object mother such as factory_girl it can be setup like the following:
-    
+
     # I usually put this file in spec/support/fixture_builder.rb
     FixtureBuilder.configure do |fbuilder|
       # rebuild fixtures automatically when these files change:
       fbuilder.files_to_check += Dir["spec/factories/*.rb", "spec/support/fixture_builder.rb"]
-      
+
       # now declare objects
       fbuilder.factory do
         david = Factory(:user, :unique_name => "david")
@@ -32,16 +34,16 @@ When using an object mother such as factory_girl it can be setup like the follow
 The block passed to the factory method initiates the creation of the fixture files.  Before yielding to the block, FixtureBuilder cleans out the test database completely.  When the block finishes, it dumps the state of the database into fixtures, like this:
 
     # users.yml
-    david: 
+    david:
       created_at: 2010-09-18 17:21:23.926511 Z
       unique_name: david
       id: 1
-      
+
     # products.yml
     i_pod:
       name: iPod
       id: 1
-      
+
     # purchases.yml
     purchase_001:
       product_id: 1
@@ -51,15 +53,15 @@ FixtureBuilder guesses about how to name fixtures based on a prioritized list of
 
     fbuilder.name(:davids_ipod, Factory(:purchase, :user => david, :product => ipod))
     @davids_ipod = Factory(:purchase, :user => david, :product => ipod)
-    
+
 Another way to name fixtures is to use the name_model_with. To use it you create a block that returns how you want a certain model name based on the record field.
 
     fbuilder.name_model_with(User) do |record|
       [record['first_name'], record['last_name']].join('_')
     end
- 
+
 For all User fixture {first_name: 'foo', last_name: 'bar'} it would generate `foo_bar` as the fixture name.
- 
+
 There are also additional configuration options that can be changed to override the defaults:
 
  * files_to_check: array of filenames that when changed cause fixtures to be rebuilt
@@ -86,8 +88,8 @@ One problem with generating your fixtures is that sequences can collide.  When t
     FixtureBuilder.configure do |fbuilder|
       ...
     end
-    
-    # Have factory girl generate non-colliding sequences starting at 1000 for data created after the fixtures 
+
+    # Have factory girl generate non-colliding sequences starting at 1000 for data created after the fixtures
     Factory.sequences.each do |name, seq|
       seq.instance_variable_set(:@value, 1000)
     end
