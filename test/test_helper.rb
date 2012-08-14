@@ -26,6 +26,7 @@ require 'fixture_builder'
 
 class MagicalCreature < ActiveRecord::Base
   validates_presence_of :name, :species
+  default_scope :conditions => { :deleted => false }
 end
 
 def create_and_blow_away_old_db
@@ -38,6 +39,7 @@ def create_and_blow_away_old_db
   ActiveRecord::Base.connection.create_table(:magical_creatures, :force => true) do |t|
     t.column :name, :string
     t.column :species, :string
+    t.column :deleted, :boolean, :default => false, :null => false
   end
 end
 
