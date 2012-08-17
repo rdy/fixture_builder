@@ -10,6 +10,7 @@ class LegacyFixtureModeFixtureGenerationTest < Test::Unit::TestCase
       fbuilder.legacy_fixtures = Dir[test_path("legacy_fixtures/*.yml"), test_path("other_legacy_fixture_set/*.yml")] 
       fbuilder.factory do
         MagicalCreature.create(:name => "frank", :species => "unicorn")
+        MagicalCreature.create(:name => "loch ness monster", :species => "sea creature", :deleted => true)
       end
     end
 
@@ -38,6 +39,7 @@ class LegacyFixtureModeFixtureGenerationTest < Test::Unit::TestCase
   def test_new_fixtures_are_created
     assert_equal "frank", @@magical_creatures['frank']['name']
     assert_equal "unicorn", @@magical_creatures['frank']['species']
+    assert_equal "loch ness monster", @@magical_creatures['loch_ness_monster']['name']
   end
 
   def test_legacy_fixtures_retain_fixture_name
