@@ -88,7 +88,7 @@ module FixtureBuilder
       begin
         fixtures = tables.inject([]) do |files, table_name|
           table_klass = table_name.classify.constantize rescue nil
-          if table_klass
+          if table_klass && table_klass < ActiveRecord::Base
             rows = table_klass.unscoped {  table_klass.all.collect(&:attributes) }
           else
             rows = ActiveRecord::Base.connection.select_all(select_sql % ActiveRecord::Base.connection.quote_table_name(table_name))
