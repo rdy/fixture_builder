@@ -90,10 +90,14 @@ One problem with generating your fixtures is that sequences can collide.  When t
     end
 
     # Have factory girl generate non-colliding sequences starting at 1000 for data created after the fixtures
-    Factory.sequences.each do |name, seq|
-      seq.instance_variable_set(:@value, 1000)
+ 
+    # Factory Girl <2 yields name & seq
+    # Factory Girl >2 yeilds only seq
+    FactoryGirl.sequences.each do |seq|
+     
+      # Factory Girl 4 uses an Enumerator Adapter, otherwise simply set a Fixnum
+      seq.instance_variable_set(:@value, FactoryGirl::Sequence::EnumeratorAdapter.new(2000))
+      
     end
-
-
 
 Copyright (c) 2009 Ryan Dy & David Stevenson, released under the MIT license

@@ -10,6 +10,7 @@ Gem::Specification.new do |s|
   s.authors = ['Ryan Dy', 'David Stevenson']
   s.description = %q{FixtureBuilder allows testers to use their existing factories, like FactoryGirl, to generate high performance fixtures that can be shared across all your tests}
   s.email = %q{mail@ryandy.com}
+  s.licenses = ['MIT']
   s.extra_rdoc_files = [
     'README.markdown'
   ]
