@@ -89,7 +89,19 @@ module FixtureBuilder
         fixtures = tables.inject([]) do |files, table_name|
           table_klass = table_name.classify.constantize rescue nil
           if table_klass && table_klass < ActiveRecord::Base
-            rows = table_klass.unscoped {  table_klass.all.collect(&:attributes) }
+            rows = table_klass.unscoped do
+              table_klass.all.collect do |obj|
+                attrs = obj.attributes
+                attrs.inject({}) do |hash, (attr_name, value)|
+                  if table_klass.serialized_attributes.has_key? attr_name
+                    hash[attr_name] = table_klass.serialized_attributes[attr_name].dump(value)
+                  else
+                    hash[attr_name] = value
+                  end
+                  hash
+                end
+              end
+            end
           else
             rows = ActiveRecord::Base.connection.select_all(select_sql % ActiveRecord::Base.connection.quote_table_name(table_name))
           end
