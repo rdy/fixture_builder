@@ -27,10 +27,19 @@ module FixtureBuilder
 
     def load_legacy_fixtures
       legacy_fixtures.each do |fixture_file|
-        # Rails 3.0 and 3.1+ support
-        fixtures_class = defined?(ActiveRecord::Fixtures) ? ActiveRecord::Fixtures : ::Fixtures
         fixtures = fixtures_class.create_fixtures(File.dirname(fixture_file), File.basename(fixture_file, '.*'))
         populate_custom_names(fixtures)
+      end
+    end
+
+    # Rails 3.0 and 3.1+ support
+    def fixtures_class
+      if defined?(ActiveRecord::FixtureSet)
+        ActiveRecord::FixtureSet
+      elsif defined?(ActiveRecord::Fixtures)
+        ActiveRecord::Fixtures
+      else
+        ::Fixtures
       end
     end
 
