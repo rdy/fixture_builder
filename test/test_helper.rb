@@ -29,6 +29,7 @@ require 'fixture_builder'
 
 class MagicalCreature < ActiveRecord::Base
   validates_presence_of :name, :species
+  serialize :powers, Array
 
   if ActiveRecord::VERSION::MAJOR >= 4
     default_scope -> { where(:deleted => false) }
@@ -47,6 +48,7 @@ def create_and_blow_away_old_db
   ActiveRecord::Base.connection.create_table(:magical_creatures, :force => true) do |t|
     t.column :name, :string
     t.column :species, :string
+    t.column :powers, :string
     t.column :deleted, :boolean, :default => false, :null => false
   end
 end

@@ -93,11 +93,7 @@ module FixtureBuilder
               table_klass.all.collect do |obj|
                 attrs = obj.attributes
                 attrs.inject({}) do |hash, (attr_name, value)|
-                  if table_klass.serialized_attributes.has_key? attr_name
-                    hash[attr_name] = table_klass.serialized_attributes[attr_name].dump(value)
-                  else
-                    hash[attr_name] = value
-                  end
+                  hash[attr_name] = serialized_value_if_needed(table_klass, attr_name, value)
                   hash
                 end
               end
@@ -120,6 +116,18 @@ module FixtureBuilder
         Date::DATE_FORMATS[:default] = default_date_format
       end
       say "Built #{fixtures.to_sentence}"
+    end
+
+    def serialized_value_if_needed(table_klass, attr_name, value)
+      if table_klass.respond_to?(:type_for_attribute)
+        table_klass.type_for_attribute(attr_name).type_cast_for_database(value)
+      else
+        if table_klass.serialized_attributes.has_key? attr_name
+          table_klass.serialized_attributes[attr_name].dump(value)
+        else
+          value
+        end
+      end
     end
 
     def write_fixture_file(fixture_data, table_name)
