@@ -25,7 +25,7 @@ Gem::Specification.new do |s|
 
   s.add_dependency %q{activerecord}, '>= 2'
   s.add_dependency %q{activesupport}, '>= 2'
-  s.add_development_dependency %q{rake}, '0.8.7'
+  s.add_development_dependency %q{rake}
   s.add_development_dependency %q{rails}, '>= 2'
   s.add_development_dependency %q{test-unit}
   s.add_development_dependency %q{sqlite3}
