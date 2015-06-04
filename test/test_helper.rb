@@ -6,6 +6,10 @@ class Rails
   def self.root
     Pathname.new(File.join(File.dirname(__FILE__), '..'))
   end
+
+  def self.env
+    'test'
+  end
 end
 
 def test_path(glob)
@@ -14,7 +18,6 @@ end
 
 require 'active_support/concern'
 require 'active_record'
-require 'active_record/test_case'
 require 'active_record/fixtures'
 
 def create_fixtures(*table_names, &block)
@@ -26,7 +29,13 @@ require 'fixture_builder'
 
 class MagicalCreature < ActiveRecord::Base
   validates_presence_of :name, :species
-  default_scope :conditions => { :deleted => false }
+  serialize :powers, Array
+
+  if ActiveRecord::VERSION::MAJOR >= 4
+    default_scope -> { where(:deleted => false) }
+  else
+    default_scope :conditions => { :deleted => false }
+  end
 end
 
 def create_and_blow_away_old_db
@@ -39,6 +48,7 @@ def create_and_blow_away_old_db
   ActiveRecord::Base.connection.create_table(:magical_creatures, :force => true) do |t|
     t.column :name, :string
     t.column :species, :string
+    t.column :powers, :string
     t.column :deleted, :boolean, :default => false, :null => false
   end
 end
