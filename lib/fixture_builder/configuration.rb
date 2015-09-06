@@ -34,11 +34,27 @@ module FixtureBuilder
     end
 
     def select_sql
-      @select_sql ||= "SELECT * FROM %s"
+      @select_sql ||= "SELECT * FROM %{table}"
+    end
+
+    def select_sql=(sql)
+      if sql =~ /%s/
+        ActiveSupport::Deprecation.warn("Passing '%s' into select_sql is deprecated. Please use '%{table}' instead.", caller)
+        sql = sql.sub(/%s/, '%{table}')
+      end
+      @select_sql = sql
     end
 
     def delete_sql
-      @delete_sql ||= "DELETE FROM %s"
+      @delete_sql ||= "DELETE FROM %{table}"
+    end
+
+    def delete_sql=(sql)
+      if sql =~ /%s/
+        ActiveSupport::Deprecation.warn("Passing '%s' into delete_sql is deprecated. Please use '%{table}' instead.", caller)
+        sql = sql.sub(/%s/, '%{table}')
+      end
+      @delete_sql = sql
     end
 
     def skip_tables
