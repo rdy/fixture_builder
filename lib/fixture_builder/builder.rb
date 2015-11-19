@@ -62,7 +62,7 @@ module FixtureBuilder
 
     def write_data_to_files
       delete_yml_files
-      dump_empty_fixtures_for_all_tables
+      dump_empty_fixtures_for_all_tables if write_empty_files
       dump_tables
     end
 
