@@ -9,7 +9,7 @@ module FixtureBuilder
 
     ACCESSIBLE_ATTRIBUTES = [:select_sql, :delete_sql, :skip_tables, :files_to_check, :record_name_fields,
                              :fixture_builder_file, :fixture_directory, :after_build, :legacy_fixtures, :model_name_procs,
-                             :write_empty_files]
+                             :write_empty_files, :select_scope_proc, :hashize_record_proc]
     attr_accessor(*ACCESSIBLE_ATTRIBUTES)
 
     SCHEMA_FILES = ['db/schema.rb', 'db/development_structure.sql', 'db/test_structure.sql', 'db/production_structure.sql']
@@ -33,6 +33,28 @@ module FixtureBuilder
       return unless rebuild_fixtures?
       @builder = Builder.new(self, @namer, block).generate!
       write_config
+    end
+
+    # this gets called when selecting records from the database to dump into
+    # fixtures. you can use it to customize things like the order in which
+    # records are selected.
+    def select_scope_proc
+      @select_scope_proc ||= ->(table_class) do
+        scope = table_class.unscoped
+        if table_class.primary_key
+          scope = scope.order(table_class.primary_key => :asc)
+        end
+        scope
+      end
+    end
+
+    # this gets called to turn each record into a hash before dumping to yaml.
+    # you can customize it if you want to do things like leave out some fields
+    # (e.g. created_at & updated_at, which are automatically populated by Rails)
+    def hashize_record_proc
+      @hashize_record_proc ||= ->(record) do
+        record.attributes_before_type_cast
+      end
     end
 
     def select_sql
