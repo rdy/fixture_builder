@@ -129,7 +129,11 @@ module FixtureBuilder
 
     def serialized_value_if_needed(table_klass, attr_name, value)
       if table_klass.respond_to?(:type_for_attribute)
-        table_klass.type_for_attribute(attr_name).type_cast_for_database(value)
+        if table_klass.type_for_attribute(attr_name).respond_to?(:cast)
+          table_klass.type_for_attribute(attr_name).cast(value)
+        else
+          table_klass.type_for_attribute(attr_name).type_cast_for_database(value)
+        end
       else
         if table_klass.serialized_attributes.has_key? attr_name
           table_klass.serialized_attributes[attr_name].dump(value)
