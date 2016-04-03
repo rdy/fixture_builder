@@ -8,7 +8,8 @@ module FixtureBuilder
     include Delegations::Namer
 
     ACCESSIBLE_ATTRIBUTES = [:select_sql, :delete_sql, :skip_tables, :files_to_check, :record_name_fields,
-                             :fixture_builder_file, :fixture_directory, :after_build, :legacy_fixtures, :model_name_procs]
+                             :fixture_builder_file, :fixture_directory, :after_build, :legacy_fixtures, :model_name_procs,
+                             :write_empty_files]
     attr_accessor(*ACCESSIBLE_ATTRIBUTES)
 
     SCHEMA_FILES = ['db/schema.rb', 'db/development_structure.sql', 'db/test_structure.sql', 'db/production_structure.sql']
@@ -16,6 +17,7 @@ module FixtureBuilder
     def initialize(opts={})
       @namer = Namer.new(self)
       @file_hashes = file_hashes
+      @write_empty_files = true
     end
 
     def include(*args)
