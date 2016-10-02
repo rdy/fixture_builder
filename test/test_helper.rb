@@ -52,6 +52,8 @@ def create_and_blow_away_old_db
     t.column :species, :string
     t.column :powers, :string
     t.column :deleted, :boolean, :default => false, :null => false
+    t.column :body_parts_jsonb, :jsonb
+    t.column :body_parts_json, :json
   end
 end
 
