@@ -24,7 +24,7 @@ def create_fixtures(*table_names, &block)
   Fixtures.create_fixtures(ActiveSupport::TestCase.fixture_path, table_names, {}, &block)
 end
 
-require 'sqlite3'
+require 'pg'
 require 'fixture_builder'
 
 class MagicalCreature < ActiveRecord::Base
@@ -40,8 +40,10 @@ end
 
 def create_and_blow_away_old_db
   ActiveRecord::Base.configurations['test'] = {
-      'adapter' => 'sqlite3',
-      'database' => 'test.db'
+      'adapter' => 'postgresql',
+      'database' => 'testdb',
+      'encoding' => 'utf8',
+      'pool' => 5
   }
   ActiveRecord::Base.establish_connection(:test)
 
