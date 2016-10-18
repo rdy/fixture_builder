@@ -132,7 +132,7 @@ module FixtureBuilder
         if table_klass.type_for_attribute(attr_name).respond_to?(:serialize)
           table_klass.type_for_attribute(attr_name).serialize(value)
         else
-          table_klass.type_for_attribute(attr_name).type_cast_for_database(value)
+          table_klass.type_for_attribute(attr_name).type_cast_for_schema(value)
         end
       else
         if table_klass.serialized_attributes.has_key? attr_name
