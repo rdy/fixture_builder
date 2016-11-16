@@ -100,7 +100,7 @@ module FixtureBuilder
           if table_klass && table_klass < ActiveRecord::Base
             rows = table_klass.unscoped do
               table_klass.all.collect do |obj|
-                attrs = obj.attributes
+                attrs = obj.attributes.select{|attr_name| table_klass.column_names.include?(attr_name)}
                 attrs.inject({}) do |hash, (attr_name, value)|
                   hash[attr_name] = serialized_value_if_needed(table_klass, attr_name, value)
                   hash
