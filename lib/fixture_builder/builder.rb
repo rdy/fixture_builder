@@ -78,7 +78,7 @@ module FixtureBuilder
     end
 
     def delete_yml_files
-      FileUtils.rm(Dir.glob(fixtures_dir('*.yml'))) rescue nil
+      FileUtils.rm(*tables.map { |t| fixture_file(t) }) rescue nil
     end
 
     def say(*messages)
