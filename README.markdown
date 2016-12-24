@@ -24,8 +24,17 @@ The best of all worlds!
 Installing
 ==========
 
- 1. Install as a plugin or gem:  `gem install fixture_builder`
- 1. Create a file which configures and declares your fixtures (see below for example)
+ 1. Install:
+   * Directly: `gem install fixture_builder`
+   * Bundler:
+   
+     ```ruby
+     # Gemfile
+     group :development, :test do
+       gem 'fixture_builder'
+
+     ```     
+ 1. Create a file which configures and declares your fixtures (see below for examples)
  1. Require the above file in your `spec_helper.rb` or `test_helper.rb`
  1. If you are using rspec, ensure you have
     * Set the `FIXTURES_PATH` in `config/application.rb` (not test.rb, or you can't use `rake db:fixtures:load`). E.g.:
