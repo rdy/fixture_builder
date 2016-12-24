@@ -62,8 +62,8 @@ class FixtureBuilderTest < Test::Unit::TestCase
     assert @called
   end
 
-  def test_spec_or_test_dir
-    assert_equal 'test', FixtureBuilder.configuration.send(:spec_or_test_dir)
+  def test_absolute_rails_fixtures_path
+    assert_equal File.expand_path('../../test/fixtures', __FILE__), FixtureBuilder::FixturesPath.absolute_rails_fixtures_path
   end
 
   def test_fixtures_dir

@@ -97,7 +97,7 @@ module FixtureBuilder
     end
 
     def fixture_directory
-      @fixture_directory ||= File.expand_path(File.join(::Rails.root, spec_or_test_dir, 'fixtures'))
+      @fixture_directory ||= FixturesPath.absolute_rails_fixtures_path
     end
 
     def fixtures_dir(path = '')
@@ -105,10 +105,6 @@ module FixtureBuilder
     end
 
     private
-
-    def spec_or_test_dir
-      File.exists?(File.join(::Rails.root, 'spec')) ? 'spec' : 'test'
-    end
 
     def file_hashes
       files_to_check.inject({}) do |hash, filename|
