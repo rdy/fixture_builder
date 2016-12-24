@@ -9,15 +9,15 @@ shared across all your tests and development environment.
 
 The best of all worlds!
 
-* Speed: Leverage the high-performance speed of Rails' transactional tests/fixtures to avoid test suite slowdown
+* **Speed**: Leverage the high-performance speed of Rails' transactional tests/fixtures to avoid test suite slowdown
   as your app's number of tests grows, because [creating and persisting data is slow!](https://robots.thoughtbot.com/speed-up-tests-by-selectively-avoiding-factory-girl)
-* Maintainability/reuse/abstraction: Use object mother factories to generate fixtures via
+* **Maintainability/Reuse/Abstraction**: Use object mother factories to generate fixtures via
   FactoryGirl or your favorite tool
-* Flexibility: You can always fall back to object mothers in tests if needed, or load a fixture
+* **Flexibility**: You can always fall back to object mothers in tests if needed, or load a fixture
   and modify only an attribute or two without the overhead of creating an entire object dependency graph.
-* Consistency: Use the exact same fixture data in all environments: test, development, and demo/staging servers.
+* **Consistency**: Use the exact same fixture data in all environments: test, development, and demo/staging servers.
   Makes reproduction and acceptance testing of bugs/features faster and easier!
-* Simplicity: Avoid having to maintain and generate `seeds.rb` sample data set separately from your test fixture/factory data set,
+* **Simplicity**: Avoid having to maintain and generate `seeds.rb` sample data set separately from your test fixture/factory data set,
   or [pick which of the myriad seeds helper gems to use](https://rubygems.org/search?query=seed).  *Just delete
   `seeds.rb` and forget about it!*
 
@@ -52,9 +52,9 @@ Usage
 
 * When running tests/specs, fixtures will build/rebuild automatically as needed
 * `rake spec:fixture_builder:build` to force a build of fixtures
-* `rake spec:fixture_builder:rebuild` to force a rebuild of fixtures
+* `rake spec:fixture_builder:clean` to delete all existing fixture files
+* `rake spec:fixture_builder:rebuild` to force a rebuild of fixtures (just a clean + build)
 * `rake db:fixtures:load` to load built fixtures into your development environment (this is a standard Rails rake task)
-
 
 Configuration Example
 =====================
@@ -192,9 +192,9 @@ going to fall back to using FactoryGirl object mothers in addition to fixtures.
 Tips
 ====
 
-* Don't use `seeds.rb`.  Instead, just use `rake db:fixtures:load` to get fixtures into dev.  If you
-  want fixture data on a staging/demo environment, either run `db:fixtures:load`, or
-  dump the database and load it there.
+* Don't use `seeds.rb` (just delete it).  Instead, just use `rake db:fixtures:load` to get fixtures into dev.
+* If you want fixture data on a staging/demo environment, either run `db:fixtures:load` on that environment, or
+  load fixtures into the dev with `rake db:fixtures:load`, dump the dev database, then load it on your environment.
 * Always use fixtures instead of object mothers in tests when possible - this will keep your test suite fast!
   [Even FactoryGirl says to avoid using factories when you can, because creating and persisting data is slow](https://robots.thoughtbot.com/speed-up-tests-by-selectively-avoiding-factory-girl)
 * If you only need to tweak an attribute or two to test an edge case, load the fixture object,
@@ -202,19 +202,22 @@ Tips
   set it via `#update_attributes!` (only if you need it persisted, this is slower).
 * Avoid referring to any fixtures by ID anywhere, unless you hardcode the ID when creating it.  They can change
   if you add more fixtures in the future and cause tests to break.
-* Modify `bin/setup` to run fixture builder and load your dev database:
-      ```ruby
-      puts "\n== Building fixtures =="
-      system! 'bin/rails spec:fixture_builder:build'
-        
-      puts "\n== Loading fixtures into dev database =="
-      system! 'bin/rails db:fixtures:load'
-      ```
 * To set up associations between different types of created fixture model objects, you can
   use a couple of approaches:
   1. When creating fixtures, keep a hash of all created models by type + name (not ID), and then look them up
      out of the hash to use as an associated object when creating subsequent related objects.
   1. Do a `MyModel.find_by_some_unique_field` to find a previously created instance that didn't have a name.   
+* If you delete a table, old fixture files for the deleted table can hang around and still get loaded
+  into the database, causing confusion or errors.  Use `rake spec:fixture_builder:clean` or 
+  `rake spec:fixture_builder:rebuild` to ensure they get cleaned up.
+* Modify `bin/setup` to run fixture builder and load your dev database:
+      ```ruby
+      puts "\n== Building fixtures =="
+      system! 'bin/rails spec:fixture_builder:rebuild'
+        
+      puts "\n== Loading fixtures into dev database =="
+      system! 'bin/rails db:fixtures:load'
+      ```
 
 More Complete Config Example
 ============================
