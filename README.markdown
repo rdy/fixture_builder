@@ -150,7 +150,7 @@ When the fixtures are generated only as needed, sometimes the process that
 generates the fixtures will be different than the process that runs the tests.
 This results in collisions when you still use factories in your tests.
 
-There's a couple of approaches for this.
+There's a couple of solutions for this.
 
 Here's a solution for FactoryGirl which resets sequences numbers to 1000
 (to avoid conflicts with fixture data which should be sequenced < 1000)
@@ -168,7 +168,7 @@ end
 FactoryGirl.sequences.each do |seq|
  
   # Factory Girl 4 uses an Enumerator Adapter, otherwise simply set a Fixnum
-  seq.instance_variable_set(:@value, FactoryGirl::Sequence::EnumeratorAdapter.new(2000))
+  seq.instance_variable_set(:@value, FactoryGirl::Sequence::EnumeratorAdapter.new(1000))
   
 end
 ```
@@ -186,8 +186,38 @@ end
 
 ```
 
-Advanced Usage
-==============
+It's probably a good idea to use both of these approaches together, especially if you are
+going to fall back to using FactoryGirl object mothers in addition to fixtures.
+
+Tips
+====
+
+* Don't use `seeds.rb`.  Instead, just use `rake db:fixtures:load` to get fixtures into dev.  If you
+  want fixture data on a staging/demo environment, either run `db:fixtures:load`, or
+  dump the database and load it there.
+* Always use fixtures instead of object mothers in tests when possible - this will keep your test suite fast!
+  [Even FactoryGirl says to avoid using factories when you can, because creating and persisting data is slow](https://robots.thoughtbot.com/speed-up-tests-by-selectively-avoiding-factory-girl)
+* If you only need to tweak an attribute or two to test an edge case, load the fixture object,
+  then just set the attribute on the object (if you don't need it persisted, this is fastest), or
+  set it via `#update_attributes!` (only if you need it persisted, this is slower).
+* Avoid referring to any fixtures by ID anywhere, unless you hardcode the ID when creating it.  They can change
+  if you add more fixtures in the future and cause tests to break.
+* Modify `bin/setup` to run fixture builder and load your dev database:
+      ```ruby
+      puts "\n== Building fixtures =="
+      system! 'bin/rails spec:fixture_builder:build'
+        
+      puts "\n== Loading fixtures into dev database =="
+      system! 'bin/rails db:fixtures:load'
+      ```
+* To set up associations between different types of created fixture model objects, you can
+  use a couple of approaches:
+  1. When creating fixtures, keep a hash of all created models by type + name (not ID), and then look them up
+     out of the hash to use as an associated object when creating subsequent related objects.
+  1. Do a `MyModel.find_by_some_unique_field` to find a previously created instance that didn't have a name.   
+
+More Complete Config Example
+============================
 
 As you get more fixtures, you may want to move the creation of fixtures to a separate file.  For example:  
 
@@ -207,6 +237,11 @@ FixtureBuilder.configure do |fbuilder|
   fbuilder.factory do
     CreateFixtures.new(fbuilder).create_all
   end
+end
+
+# Have factory girl generate non-colliding sequences starting at 1000 for data created after the fixtures
+FactoryGirl.sequences.each do |seq|
+  seq.instance_variable_set(:@value, FactoryGirl::Sequence::EnumeratorAdapter.new(1000))
 end
 ```
 
@@ -252,31 +287,10 @@ class CreateFixtures
   
   # other creation and helper methods to abstract common logic, e.g. 
   # * custom naming rules via #name_model_with
-  # * set up associations by storing created model records in a hash: models[model_class_name][model_name.to_sym] = record
+  # * set up associations by storing created model records in a hash so you can retrieve them
   # etc... (hopefully some of these helper patterns can be standardized and included in the gem in the future)
  end 
 ```
-
-Tips
-====
-
-* Don't use `seeds.rb`.  Instead, just use `rake db:fixtures:load` to get fixtures into dev.  If you
-  want fixture data on a staging/demo environment, either run `db:fixtures:load`, or
-  dump the database and load it there.
-* Always use fixtures instead of object mothers in tests when possible - this will keep your test suite fast!
-  [Even FactoryGirl says to avoid using factories when you can, because creating and persisting data is slow](https://robots.thoughtbot.com/speed-up-tests-by-selectively-avoiding-factory-girl)
-* If you only need to tweak an attribute or two to test an edge case, load the fixture object,
-  then just set the attribute on the object (if you don't need it persisted, this is fastest), or
-  set it via `#update_attributes!` (only if you need it persisted, this is slower).
-* Modify `bin/setup` to run fixture builder and load your dev database:
-      ```ruby
-      puts "\n== Building fixtures =="
-      system! 'bin/rails spec:fixture_builder:build'
-        
-      puts "\n== Loading fixtures into dev database =="
-      system! 'bin/rails db:fixtures:load'
-      ```
-
 
 Copyright (c) 2009 Ryan Dy & David Stevenson, released under the MIT license
 
