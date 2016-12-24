@@ -219,6 +219,10 @@ Tips
 * If you delete a table, old fixture files for the deleted table can hang around and still get loaded
   into the database, causing confusion or errors.  Use `rake spec:fixture_builder:clean` or 
   `rake spec:fixture_builder:rebuild` to ensure they get cleaned up.
+* As you build more advanced fixture creation logic for your app's domain and try to DRY it up, you'll probably
+  end up having an easier time if:
+  1. You don't use any namespaced models
+  1. You keep your factory names consistent and exactly matching your model names
 * Modify `bin/setup` to run fixture builder and load your dev database:
       ```ruby
       puts "\n== Building fixtures =="
