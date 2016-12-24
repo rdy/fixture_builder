@@ -96,26 +96,25 @@ module FixtureBuilder
       Date::DATE_FORMATS[:default] = Date::DATE_FORMATS[:db]
       begin
         fixtures = tables.inject([]) do |files, table_name|
-          table_klass = table_name.classify.constantize rescue nil
-          if table_klass && table_klass < ActiveRecord::Base
-            rows = table_klass.unscoped do
-              table_klass.all.collect do |obj|
-                attrs = obj.attributes
-                attrs.inject({}) do |hash, (attr_name, value)|
-                  hash[attr_name] = serialized_value_if_needed(table_klass, attr_name, value)
-                  hash
-                end
-              end
-            end
-          else
-            rows = ActiveRecord::Base.connection.select_all(select_sql % {table: ActiveRecord::Base.connection.quote_table_name(table_name)})
+          # Always create our own Class (inheriting from ActiveRecord) so that:
+          # 1) We can always use ActiveRecord, even if the app doesn't have an
+          #    ActiveRecord model defined (e.g. some join tables)
+          # 2) We don't have to worry about default scopes and other things that
+          #    may be present on the application's class.
+          table_class = Class.new(ActiveRecord::Base) { self.table_name = table_name }
+
+          records = select_scope_proc.call(table_class).to_a
+
+          rows = records.map do |record|
+            hashize_record_proc.call(record)
           end
+
           next files if rows.empty?
 
           row_index = '000'
-          fixture_data = rows.inject({}) do |hash, record|
-            hash.merge(record_name(record, table_name, row_index) => record)
-          end
+          fixture_data = rows.map do |row|
+            [record_name(row, table_name, row_index), row]
+          end.to_h
 
           write_fixture_file fixture_data, table_name
 
@@ -125,22 +124,6 @@ module FixtureBuilder
         Date::DATE_FORMATS[:default] = default_date_format
       end
       say "Built #{fixtures.to_sentence}"
-    end
-
-    def serialized_value_if_needed(table_klass, attr_name, value)
-      if table_klass.respond_to?(:type_for_attribute)
-        if table_klass.type_for_attribute(attr_name).respond_to?(:serialize)
-          table_klass.type_for_attribute(attr_name).serialize(value)
-        else
-          table_klass.type_for_attribute(attr_name).type_cast_for_database(value)
-        end
-      else
-        if table_klass.serialized_attributes.has_key? attr_name
-          table_klass.serialized_attributes[attr_name].dump(value)
-        else
-          value
-        end
-      end
     end
 
     def write_fixture_file(fixture_data, table_name)
