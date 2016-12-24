@@ -97,8 +97,7 @@ module FixtureBuilder
     end
 
     def fixture_directory
-      @fixture_directory ||= ActiveRecord::Tasks::DatabaseTasks.fixtures_path
-      @fixture_directory
+      @fixture_directory ||= File.expand_path(File.join(::Rails.root, spec_or_test_dir, 'fixtures'))
     end
 
     def fixtures_dir(path = '')
