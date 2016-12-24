@@ -7,8 +7,8 @@ Gem::Specification.new do |s|
   s.version     = FixtureBuilder::VERSION
   s.platform    = Gem::Platform::RUBY
   s.required_rubygems_version = Gem::Requirement.new('>= 0') if s.respond_to? :required_rubygems_version=
-  s.authors = ['Ryan Dy', 'David Stevenson']
-  s.description = %q{FixtureBuilder allows testers to use their existing factories, like FactoryGirl, to generate high performance fixtures that can be shared across all your tests}
+  s.authors = ['Ryan Dy', 'David Stevenson', 'Chad Woolley']
+  s.description = %q{FixtureBuilder allows testers to use their existing factories, like FactoryGirl, to generate high performance fixtures that can be shared across all your tests and development environment.  The best of all worlds!  Speed, Maintainability, Flexibility, Consistency, and Simplicity!}
   s.email = %q{mail@ryandy.com}
   s.licenses = ['MIT']
   s.extra_rdoc_files = [
@@ -21,7 +21,7 @@ Gem::Specification.new do |s|
 
   s.homepage = %q{http://github.com/rdy/fixture_builder}
   s.rubyforge_project = %q{fixture_builder}
-  s.summary = %q{Build YAML fixtures using object factories}
+  s.summary = %q{Build Rails fixtures using object mother factories}
 
   s.add_dependency %q{activerecord}, '>= 2'
   s.add_dependency %q{activesupport}, '>= 2'
