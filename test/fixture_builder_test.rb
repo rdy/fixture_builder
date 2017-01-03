@@ -54,6 +54,24 @@ class FixtureBuilderTest < Test::Unit::TestCase
     assert_equal "---\n- shading\n- rooting\n- seeding\n", generated_fixture['enty']['powers']
   end
 
+  def test_serialization_of_json
+    create_and_blow_away_old_db
+    force_fixture_generation
+
+    body_parts = { 'legs' => 2 }
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.factory do
+        @enty = MagicalCreature.create(:name => 'Enty', :species => 'ent',
+                                       :body_parts_jsonb => body_parts,
+                                       :body_parts_json => body_parts)
+      end
+    end
+    generated_fixture = YAML.load(File.open(test_path("fixtures/magical_creatures.yml")))
+    assert_equal body_parts, generated_fixture['enty']['body_parts_jsonb']
+    assert_equal body_parts, generated_fixture['enty']['body_parts_json']
+  end
+
   def test_configure
     FixtureBuilder.configure do |config|
       assert config.is_a?(FixtureBuilder::Configuration)

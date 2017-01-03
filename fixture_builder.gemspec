@@ -28,5 +28,5 @@ Gem::Specification.new do |s|
   s.add_development_dependency %q{rake}
   s.add_development_dependency %q{rails}, '>= 2'
   s.add_development_dependency %q{test-unit}
-  s.add_development_dependency %q{sqlite3}
+  s.add_development_dependency %q{pg}
 end
