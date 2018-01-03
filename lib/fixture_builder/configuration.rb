@@ -2,6 +2,7 @@ require 'active_support/core_ext'
 require 'active_support/core_ext/string'
 require 'digest/md5'
 require 'fileutils'
+require 'hashdiff'
 
 module FixtureBuilder
   class Configuration
@@ -124,7 +125,20 @@ module FixtureBuilder
     end
 
     def rebuild_fixtures?
-      @file_hashes != read_config
+      file_hashes_from_disk= @file_hashes
+      file_hashes_from_config= read_config
+      if Dir.glob("#{fixture_directory}/*.yml").blank?
+        puts "=> rebuilding fixtures because fixture directory #{fixture_directory} has no *.yml files"
+        return true
+      elsif !::File.exists?(fixture_builder_file)
+        puts "=> rebuilding fixtures because fixture_builder config file #{fixture_builder_file} does not exist"
+        return true
+      elsif file_hashes_from_disk != file_hashes_from_config
+        puts '=> rebuilding fixtures because one or more of the following files have changed (see http://www.rubydoc.info/gems/hashdiff for diff syntax):'
+        HashDiff.diff(file_hashes_from_disk, file_hashes_from_config).map {|diff| print '   '; p diff}
+        return true
+      end
+      false
     end
   end
 end
