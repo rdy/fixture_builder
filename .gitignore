@@ -5,3 +5,4 @@ pkg/
 tmp/fixture_builder.yml
 test/fixtures/magical_creatures.yml
 Gemfile.lock
+*.gem
