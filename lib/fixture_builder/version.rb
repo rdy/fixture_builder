@@ -1,3 +1,3 @@
 module FixtureBuilder
-  VERSION = '0.5.1.rc4'
+  VERSION = '0.5.1'
 end
