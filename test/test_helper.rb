@@ -33,6 +33,8 @@ class MagicalCreature < ActiveRecord::Base
 
   if ActiveRecord::VERSION::MAJOR >= 4
     default_scope -> { where(:deleted => false) }
+
+    attribute :virtual, ActiveRecord::Type::Integer.new
   else
     default_scope :conditions => { :deleted => false }
   end

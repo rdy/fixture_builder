@@ -54,6 +54,20 @@ class FixtureBuilderTest < Test::Unit::TestCase
     assert_equal "---\n- shading\n- rooting\n- seeding\n", generated_fixture['enty']['powers']
   end
 
+  def test_do_not_include_virtual_attributes
+    create_and_blow_away_old_db
+    force_fixture_generation
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.factory do
+        MagicalCreature.create(:name => 'Uni', :species => 'unicorn', :powers => %w{rainbows flying})
+      end
+    end
+    generated_fixture = YAML.load(File.open(test_path('fixtures/magical_creatures.yml')))
+    assert !generated_fixture['uni'].key?('virtual')
+  end
+
   def test_configure
     FixtureBuilder.configure do |config|
       assert config.is_a?(FixtureBuilder::Configuration)
