@@ -65,7 +65,6 @@ class FixtureBuilderTest < Test::Unit::TestCase
       end
     end
     generated_fixture = YAML.load(File.open(test_path('fixtures/magical_creatures.yml')))
-    puts generated_fixture
     assert !generated_fixture['uni'].key?('virtual')
   end
 
