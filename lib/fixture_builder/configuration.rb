@@ -5,6 +5,13 @@ require 'fileutils'
 require 'hashdiff'
 
 module FixtureBuilder
+  if Object.const_defined?(:Hashdiff)
+    # hashdiff version >= 1.0.0
+    Differ = Hashdiff
+  else
+    Differ = HashDiff
+  end
+
   class Configuration
     include Delegations::Namer
 
@@ -135,7 +142,7 @@ module FixtureBuilder
         return true
       elsif file_hashes_from_disk != file_hashes_from_config
         puts '=> rebuilding fixtures because one or more of the following files have changed (see http://www.rubydoc.info/gems/hashdiff for diff syntax):'
-        HashDiff.diff(file_hashes_from_disk, file_hashes_from_config).map {|diff| print '   '; p diff}
+        Differ.diff(file_hashes_from_disk, file_hashes_from_config).map {|diff| print '   '; p diff}
         return true
       end
       false
