@@ -130,7 +130,7 @@ module FixtureBuilder
       if Dir.glob("#{fixture_directory}/*.yml").blank?
         puts "=> rebuilding fixtures because fixture directory #{fixture_directory} has no *.yml files"
         return true
-      elsif !::File.exists?(fixture_builder_file)
+      elsif !::File.exist?(fixture_builder_file)
         puts "=> rebuilding fixtures because fixture_builder config file #{fixture_builder_file} does not exist"
         return true
       elsif file_hashes_from_disk != file_hashes_from_config

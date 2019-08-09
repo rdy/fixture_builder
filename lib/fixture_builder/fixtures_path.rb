@@ -5,7 +5,7 @@ module FixtureBuilder
     rescue
       if ENV["FIXTURES_PATH"]
         ENV["FIXTURES_PATH"]
-      elsif File.exists?(File.expand_path("spec/fixtures",::Rails.root))
+      elsif File.exist?(File.expand_path("spec/fixtures",::Rails.root))
         File.expand_path("spec/fixtures",::Rails.root)
       else
         File.expand_path("test/fixtures",::Rails.root)
