@@ -61,3 +61,11 @@ def force_fixture_generation
   rescue
   end
 end
+
+def force_fixture_generation_due_to_differing_file_hashes
+  begin
+    path = File.expand_path("../../tmp/fixture_builder.yml", __FILE__)
+    File.write(path, "blah blah blah")
+  rescue
+  end
+end

@@ -1,6 +1,5 @@
 require File.expand_path(File.join(File.dirname(__FILE__), 'test_helper'))
 
-
 class Model
   def self.table_name
     'models'
@@ -82,5 +81,20 @@ class FixtureBuilderTest < Test::Unit::TestCase
 
   def test_fixtures_dir
     assert_match /test\/fixtures$/, FixtureBuilder.configuration.send(:fixtures_dir).to_s
+  end
+
+  def test_rebuilding_due_to_differing_file_hashes
+    create_and_blow_away_old_db
+    force_fixture_generation_due_to_differing_file_hashes
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.factory do
+        @enty = MagicalCreature.create(:name => 'Enty', :species => 'ent',
+                                       :powers => %w{shading rooting seeding})
+      end
+    end
+    generated_fixture = YAML.load(File.open(test_path("fixtures/magical_creatures.yml")))
+    assert_equal "---\n- shading\n- rooting\n- seeding\n", generated_fixture['enty']['powers']
   end
 end
