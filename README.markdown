@@ -310,4 +310,4 @@ class CreateFixtures
 
 Copyright (c) 2009 Ryan Dy & David Stevenson, released under the MIT license
 
-Currently maintained by [Chad Woolley](thewoolleyman@gmail.com)
+Currently maintained by [Chad Woolley](mailto:thewoolleyman@gmail.com)
