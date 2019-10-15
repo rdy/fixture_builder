@@ -1,6 +1,6 @@
 require 'active_support/core_ext'
 require 'active_support/core_ext/string'
-require 'digest/md5'
+require 'digest'
 require 'fileutils'
 require 'hashdiff'
 
@@ -17,7 +17,7 @@ module FixtureBuilder
 
     ACCESSIBLE_ATTRIBUTES = [:select_sql, :delete_sql, :skip_tables, :files_to_check, :record_name_fields,
                              :fixture_builder_file, :fixture_directory, :after_build, :legacy_fixtures, :model_name_procs,
-                             :write_empty_files]
+                             :write_empty_files, :use_sha1_digests]
     attr_accessor(*ACCESSIBLE_ATTRIBUTES)
 
     SCHEMA_FILES = ['db/schema.rb', 'db/development_structure.sql', 'db/test_structure.sql', 'db/production_structure.sql']
@@ -100,6 +100,10 @@ module FixtureBuilder
       @namer.name_model_with(model_class, &block)
     end
 
+    def use_sha1_digests
+      @use_sha1_digests ||= false
+    end
+
     def tables
       ActiveRecord::Base.connection.tables - skip_tables
     end
@@ -115,8 +119,9 @@ module FixtureBuilder
     private
 
     def file_hashes
+      algorithm = use_sha1_digests ? Digest::SHA1 : Digest::MD5
       files_to_check.inject({}) do |hash, filename|
-        hash[filename] = Digest::MD5.hexdigest(File.read(filename))
+        hash[filename] = algorithm.hexdigest(File.read(filename))
         hash
       end
     end
