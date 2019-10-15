@@ -97,4 +97,23 @@ class FixtureBuilderTest < Test::Unit::TestCase
     generated_fixture = YAML.load(File.open(test_path("fixtures/magical_creatures.yml")))
     assert_equal "---\n- shading\n- rooting\n- seeding\n", generated_fixture['enty']['powers']
   end
+
+  def test_sha1_digests
+    create_and_blow_away_old_db
+    force_fixture_generation_due_to_differing_file_hashes
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.use_sha1_digests = true
+      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.factory do
+        @enty = MagicalCreature.create(:name => 'Enty', :species => 'ent',
+                                       :powers => %w{shading rooting seeding})
+      end
+      first_modified_time = File.mtime(test_path("fixtures/magical_creatures.yml"))
+      fbuilder.factory do
+      end
+      second_modified_time = File.mtime(test_path("fixtures/magical_creatures.yml"))
+      assert_equal first_modified_time, second_modified_time
+    end
+  end
 end
