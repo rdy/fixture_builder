@@ -102,8 +102,7 @@ class FixtureBuilderTest < Test::Unit::TestCase
     create_and_blow_away_old_db
     force_fixture_generation_due_to_differing_file_hashes
 
-    FixtureBuilder.configure do |fbuilder|
-      fbuilder.use_sha1_digests = true
+    FixtureBuilder.configure(use_sha1_digests: true) do |fbuilder|
       fbuilder.files_to_check += Dir[test_path("*.rb")]
       fbuilder.factory do
         @enty = MagicalCreature.create(:name => 'Enty', :species => 'ent',

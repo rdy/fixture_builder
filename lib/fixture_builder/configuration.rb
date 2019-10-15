@@ -17,13 +17,14 @@ module FixtureBuilder
 
     ACCESSIBLE_ATTRIBUTES = [:select_sql, :delete_sql, :skip_tables, :files_to_check, :record_name_fields,
                              :fixture_builder_file, :fixture_directory, :after_build, :legacy_fixtures, :model_name_procs,
-                             :write_empty_files, :use_sha1_digests]
+                             :write_empty_files]
     attr_accessor(*ACCESSIBLE_ATTRIBUTES)
 
     SCHEMA_FILES = ['db/schema.rb', 'db/development_structure.sql', 'db/test_structure.sql', 'db/production_structure.sql']
 
     def initialize(opts={})
       @namer = Namer.new(self)
+      @use_sha1_digests = opts[:use_sha1_digests] || false
       @file_hashes = file_hashes
       @write_empty_files = true
     end
@@ -100,10 +101,6 @@ module FixtureBuilder
       @namer.name_model_with(model_class, &block)
     end
 
-    def use_sha1_digests
-      @use_sha1_digests ||= false
-    end
-
     def tables
       ActiveRecord::Base.connection.tables - skip_tables
     end
@@ -119,7 +116,7 @@ module FixtureBuilder
     private
 
     def file_hashes
-      algorithm = use_sha1_digests ? Digest::SHA1 : Digest::MD5
+      algorithm = @use_sha1_digests ? Digest::SHA1 : Digest::MD5
       files_to_check.inject({}) do |hash, filename|
         hash[filename] = algorithm.hexdigest(File.read(filename))
         hash
