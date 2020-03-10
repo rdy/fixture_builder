@@ -91,12 +91,20 @@ module FixtureBuilder
       end
     end
 
+    def klass_by_table_name
+      @klass_by_table_name ||= ActiveRecord::Base
+                                   .descendants
+                                   .reject(&:abstract_class)
+                                   .group_by(&:table_name)
+                                   .transform_values { |klasses| klasses.min { |klass| klass.ancestors.size } }
+    end
+
     def dump_tables
       default_date_format = Date::DATE_FORMATS[:default]
       Date::DATE_FORMATS[:default] = Date::DATE_FORMATS[:db]
       begin
         fixtures = tables.inject([]) do |files, table_name|
-          table_klass = table_name.classify.constantize rescue nil
+          table_klass = klass_by_table_name[table_name] rescue nil
           if table_klass && table_klass < ActiveRecord::Base
             rows = table_klass.unscoped do
               table_klass.order(:id).all.collect do |obj|

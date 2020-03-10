@@ -40,6 +40,25 @@ class MagicalCreature < ActiveRecord::Base
   end
 end
 
+
+module Legendary
+  class Creature < ActiveRecord::Base
+    self.table_name = 'my_creatures'
+    validates_presence_of :name, :species
+
+    if ActiveRecord::VERSION::MAJOR >= 4
+      default_scope -> { where(deleted: false) }
+
+      attribute :virtual, ActiveRecord::Type::Integer.new
+    else
+      default_scope conditions: { deleted: false }
+    end
+  end
+end
+
+class MythicalCreature < MagicalCreature
+end
+
 def create_and_blow_away_old_db
   ActiveRecord::Base.configurations['test'] = {
       'adapter' => 'sqlite3',
@@ -49,6 +68,15 @@ def create_and_blow_away_old_db
 
   ActiveRecord::Base.connection.create_table(:magical_creatures, :force => true) do |t|
     t.column :name, :string
+    t.column :type, :string
+    t.column :species, :string
+    t.column :powers, :string
+    t.column :deleted, :boolean, :default => false, :null => false
+  end
+
+  ActiveRecord::Base.connection.create_table(:my_creatures, force: true) do |t|
+    t.column :name, :string
+    t.column :type, :string
     t.column :species, :string
     t.column :powers, :string
     t.column :deleted, :boolean, :default => false, :null => false

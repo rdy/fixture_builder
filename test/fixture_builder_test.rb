@@ -53,6 +53,41 @@ class FixtureBuilderTest < Test::Unit::TestCase
     assert_equal "---\n- shading\n- rooting\n- seeding\n", generated_fixture['enty']['powers']
   end
 
+  def test_sti_serialization
+    create_and_blow_away_old_db
+    force_fixture_generation
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.factory do
+        @argus = MythicalCreature.create(name: 'Argus',
+                                         species: 'giant',
+                                         powers: %w[watching seeing])
+      end
+    end
+    generated_fixture = YAML.load(File.open(test_path("fixtures/magical_creatures.yml")))
+    assert_equal "---\n- watching\n- seeing\n", generated_fixture['argus']['powers']
+    assert_equal 'MythicalCreature', generated_fixture['argus']['type']
+  end
+
+  def test_namespace_serialization
+    create_and_blow_away_old_db
+    force_fixture_generation
+
+    powers = { 'super' => 'flying', 'normal' => 'galloping' }
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.factory do
+        @pegasos = Legendary::Creature.create(name: 'Pegasos',
+                                              species: 'wingedhorse',
+                                              powers: powers)
+      end
+    end
+    generated_fixture = YAML.load(File.open(test_path("fixtures/my_creatures.yml")))
+    assert_equal powers, generated_fixture['pegasos']['powers']
+  end
+
   def test_do_not_include_virtual_attributes
     create_and_blow_away_old_db
     force_fixture_generation
