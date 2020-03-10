@@ -99,13 +99,17 @@ module FixtureBuilder
                                    .transform_values { |klasses| klasses.min { |klass| klass.ancestors.size } }
     end
 
+    def eligible_for_serialization(table_klass)
+      table_klass && table_klass < ActiveRecord::Base && table_klass.attribute_names.include?('id')
+    end
+
     def dump_tables
       default_date_format = Date::DATE_FORMATS[:default]
       Date::DATE_FORMATS[:default] = Date::DATE_FORMATS[:db]
       begin
         fixtures = tables.inject([]) do |files, table_name|
           table_klass = klass_by_table_name[table_name] rescue nil
-          if table_klass && table_klass < ActiveRecord::Base
+          if eligible_for_serialization(table_klass)
             rows = table_klass.unscoped do
               table_klass.order(:id).all.collect do |obj|
                 attrs = obj.attributes.select { |attr_name| table_klass.column_names.include?(attr_name) }

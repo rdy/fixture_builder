@@ -59,6 +59,11 @@ end
 class MythicalCreature < MagicalCreature
 end
 
+class CreatureRelationship < ActiveRecord::Base
+  belongs_to :one, class_name: 'MagicalCreature'
+  belongs_to :other, class_name: 'MagicalCreature'
+end
+
 def create_and_blow_away_old_db
   ActiveRecord::Base.configurations = {
       test: {
@@ -85,6 +90,11 @@ def create_and_blow_away_old_db
     t.column :species, :string
     t.column :powers, :jsonb
     t.column :deleted, :boolean, :default => false, :null => false
+  end
+
+  ActiveRecord::Base.connection.create_table(:creature_relationships, force: true, id: false) do |t|
+    t.column :one_id, :integer
+    t.column :other_id, :integer
   end
 end
 

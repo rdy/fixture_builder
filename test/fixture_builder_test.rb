@@ -88,6 +88,23 @@ class FixtureBuilderTest < Test::Unit::TestCase
     assert_equal powers, generated_fixture['pegasos']['powers']
   end
 
+  def test_idless_serialization
+    create_and_blow_away_old_db
+    force_fixture_generation
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.factory do
+        @enty = MagicalCreature.create(:name => 'Enty', :species => 'ent')
+        @king_of_gnomes = MagicalCreature.create(:name => 'robert', :species => 'gnome')
+        @relationship = CreatureRelationship.create(one: @enty, other: @king_of_gnomes)
+      end
+    end
+    generated_fixture = YAML.load(File.open(test_path("fixtures/creature_relationships.yml")))
+    assert_equal 1, generated_fixture['creature_relationships_001']['one_id']
+    assert_equal 2, generated_fixture['creature_relationships_001']['other_id']
+  end
+
   def test_do_not_include_virtual_attributes
     create_and_blow_away_old_db
     force_fixture_generation
