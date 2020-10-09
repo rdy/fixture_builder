@@ -15,8 +15,8 @@ Gem::Specification.new do |s|
     'README.markdown'
   ]
 
-  s.files         = `git ls-files`.split("\n")
-  s.test_files    = `git ls-files -- {test,spec,features}/*`.split("\n")
+  s.files         = Dir[ "MIT-LICENSE", "README.markdown", 'lib/**/*', 'test/**/*']
+  s.test_files    = Dir['test/**/*']
   s.require_paths = ['lib']
 
   s.homepage = %q{http://github.com/rdy/fixture_builder}
