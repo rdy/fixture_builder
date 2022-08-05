@@ -110,7 +110,12 @@ module FixtureBuilder
     end
 
     def fixtures_dir(path = '')
-      File.expand_path(File.join(fixture_directory, path))
+      subdirs = path.split('/')
+      path = subdirs.pop || ''
+      dir = File.expand_path(File.join(fixture_directory, *subdirs))
+
+      FileUtils.mkdir_p(dir)
+      File.join(dir, path)
     end
 
     private

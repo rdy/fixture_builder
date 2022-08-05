@@ -80,7 +80,13 @@ class FixtureBuilderTest < Test::Unit::TestCase
   end
 
   def test_fixtures_dir
-    assert_match /test\/fixtures$/, FixtureBuilder.configuration.send(:fixtures_dir).to_s
+    file_path = "wibble.yml"
+    assert_match(/test\/fixtures\/#{file_path}$/, FixtureBuilder.configuration.send(:fixtures_dir, file_path).to_s)
+  end
+
+  def test_nested_fixtures_dir
+    file_path = "foo/bar/wibble.yml"
+    assert_match(/test\/fixtures\/#{file_path}$/, FixtureBuilder.configuration.send(:fixtures_dir, file_path).to_s)
   end
 
   def test_rebuilding_due_to_differing_file_hashes
