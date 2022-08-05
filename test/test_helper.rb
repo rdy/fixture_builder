@@ -41,10 +41,19 @@ class MagicalCreature < ActiveRecord::Base
 end
 
 def create_and_blow_away_old_db
-  ActiveRecord::Base.configurations['test'] = {
-      'adapter' => 'sqlite3',
-      'database' => 'test.db'
-  }
+  if ActiveRecord::VERSION::MAJOR >= 7
+    ActiveRecord::Base.configurations = {
+      test: {
+        'adapter' => 'sqlite3',
+        'database' => 'test.db'
+      }
+    }
+  else
+    ActiveRecord::Base.configurations['test'] = {
+        'adapter' => 'sqlite3',
+        'database' => 'test.db'
+    }
+  end
   ActiveRecord::Base.establish_connection(:test)
 
   ActiveRecord::Base.connection.create_table(:magical_creatures, :force => true) do |t|
