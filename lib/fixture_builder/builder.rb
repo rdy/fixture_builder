@@ -96,7 +96,7 @@ module FixtureBuilder
       Date::DATE_FORMATS[:default] = Date::DATE_FORMATS[:db]
       begin
         fixtures = tables.inject([]) do |files, table_name|
-          table_klass = table_name.classify.constantize rescue nil
+          table_klass = fixture_classes[table_name] || table_name.classify.constantize rescue nil
           if table_klass && table_klass < ActiveRecord::Base
             rows = table_klass.unscoped do
               table_klass.order(:id).all.collect do |obj|
@@ -154,7 +154,8 @@ module FixtureBuilder
     end
 
     def fixture_file(table_name)
-      fixtures_dir("#{table_name}.yml")
+      file_name = fixture_files[table_name] || table_name
+      fixtures_dir("#{file_name}.yml")
     end
   end
 end

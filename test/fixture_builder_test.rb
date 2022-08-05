@@ -121,4 +121,64 @@ class FixtureBuilderTest < Test::Unit::TestCase
       assert_equal first_modified_time, second_modified_time
     end
   end
+
+  def test_set_fixture_class
+    create_and_blow_away_old_db
+    force_fixture_generation
+
+    old_klass = MagicalCreature
+    new_klass = Class.new(ActiveRecord::Base) do
+      self.table_name = "magical_creatures"
+      serialize :powers, Array
+    end
+    Object.instance_eval { remove_const(:MagicalCreature) }
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.configure_tables(magical_creatures: { class: new_klass })
+
+      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.factory do
+        @enty = new_klass.create(:name => 'Enty', :species => 'ent',
+                                        :powers => %w{shading rooting seeding})
+      end
+    end
+    generated_fixture = YAML.load(File.open(test_path("fixtures/magical_creatures.yml")))
+    assert_equal "---\n- shading\n- rooting\n- seeding\n", generated_fixture['enty']['powers']
+  ensure
+    Object.const_set(:MagicalCreature, old_klass)
+  end
+
+  def test_set_fixture_file
+    create_and_blow_away_old_db
+    force_fixture_generation
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.configure_tables(magical_creatures: { file: "wibbles" })
+
+      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.factory do
+        @enty = MagicalCreature.create(:name => 'Enty', :species => 'ent',
+                                        :powers => %w{shading rooting seeding})
+      end
+    end
+    generated_fixture = YAML.load(File.open(test_path("fixtures/wibbles.yml")))
+    assert_equal "---\n- shading\n- rooting\n- seeding\n", generated_fixture['enty']['powers']
+  end
+
+  def test_set_fixture_file_with_namespace
+    create_and_blow_away_old_db
+    force_fixture_generation
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.configure_tables(magical_creatures: { file: "legacy/wibbles" })
+
+      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.factory do
+        @enty = MagicalCreature.create(:name => 'Enty', :species => 'ent',
+                                        :powers => %w{shading rooting seeding})
+      end
+    end
+    generated_fixture = YAML.load(File.open(test_path("fixtures/legacy/wibbles.yml")))
+    assert_equal "---\n- shading\n- rooting\n- seeding\n", generated_fixture['enty']['powers']
+  end
 end

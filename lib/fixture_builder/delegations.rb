@@ -4,7 +4,7 @@ module FixtureBuilder
   module Delegations
     module Configuration
       def self.included(base)
-        methods_to_delegate = [:fixtures_dir, :tables, :legacy_fixtures].concat(::FixtureBuilder::Configuration::ACCESSIBLE_ATTRIBUTES).flatten
+        methods_to_delegate = [:fixtures_dir, :tables, :legacy_fixtures, :fixture_classes, :fixture_files].concat(::FixtureBuilder::Configuration::ACCESSIBLE_ATTRIBUTES).flatten
         methods_to_delegate.each do |meth|
           base.delegate(meth, :to => :@configuration)
         end
