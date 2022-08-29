@@ -38,6 +38,20 @@ class FixtureBuilderTest < Test::Unit::TestCase
     assert_equal 'king_of_gnomes', generated_fixture.keys.first
   end
 
+  def test_ivar_naming_with_uuid_primary_key
+    create_and_blow_away_old_db
+    force_fixture_generation
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.factory do
+        @you_know_who = Unnameable.create!
+      end
+    end
+    generated_fixture = YAML.load(File.open(test_path("fixtures/unnameables.yml")))
+    assert_equal 'you_know_who', generated_fixture.keys.first
+  end
+
   def test_serialization
     create_and_blow_away_old_db
     force_fixture_generation
@@ -80,7 +94,13 @@ class FixtureBuilderTest < Test::Unit::TestCase
   end
 
   def test_fixtures_dir
-    assert_match /test\/fixtures$/, FixtureBuilder.configuration.send(:fixtures_dir).to_s
+    file_path = "wibble.yml"
+    assert_match(/test\/fixtures\/#{file_path}$/, FixtureBuilder.configuration.send(:fixtures_dir, file_path).to_s)
+  end
+
+  def test_nested_fixtures_dir
+    file_path = "foo/bar/wibble.yml"
+    assert_match(/test\/fixtures\/#{file_path}$/, FixtureBuilder.configuration.send(:fixtures_dir, file_path).to_s)
   end
 
   def test_rebuilding_due_to_differing_file_hashes
@@ -114,5 +134,65 @@ class FixtureBuilderTest < Test::Unit::TestCase
       second_modified_time = File.mtime(test_path("fixtures/magical_creatures.yml"))
       assert_equal first_modified_time, second_modified_time
     end
+  end
+
+  def test_set_fixture_class
+    create_and_blow_away_old_db
+    force_fixture_generation
+
+    old_klass = MagicalCreature
+    new_klass = Class.new(ActiveRecord::Base) do
+      self.table_name = "magical_creatures"
+      serialize :powers, Array
+    end
+    Object.instance_eval { remove_const(:MagicalCreature) }
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.configure_tables(magical_creatures: { class: new_klass })
+
+      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.factory do
+        @enty = new_klass.create(:name => 'Enty', :species => 'ent',
+                                        :powers => %w{shading rooting seeding})
+      end
+    end
+    generated_fixture = YAML.load(File.open(test_path("fixtures/magical_creatures.yml")))
+    assert_equal "---\n- shading\n- rooting\n- seeding\n", generated_fixture['enty']['powers']
+  ensure
+    Object.const_set(:MagicalCreature, old_klass)
+  end
+
+  def test_set_fixture_file
+    create_and_blow_away_old_db
+    force_fixture_generation
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.configure_tables(magical_creatures: { file: "wibbles" })
+
+      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.factory do
+        @enty = MagicalCreature.create(:name => 'Enty', :species => 'ent',
+                                        :powers => %w{shading rooting seeding})
+      end
+    end
+    generated_fixture = YAML.load(File.open(test_path("fixtures/wibbles.yml")))
+    assert_equal "---\n- shading\n- rooting\n- seeding\n", generated_fixture['enty']['powers']
+  end
+
+  def test_set_fixture_file_with_namespace
+    create_and_blow_away_old_db
+    force_fixture_generation
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.configure_tables(magical_creatures: { file: "legacy/wibbles" })
+
+      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.factory do
+        @enty = MagicalCreature.create(:name => 'Enty', :species => 'ent',
+                                        :powers => %w{shading rooting seeding})
+      end
+    end
+    generated_fixture = YAML.load(File.open(test_path("fixtures/legacy/wibbles.yml")))
+    assert_equal "---\n- shading\n- rooting\n- seeding\n", generated_fixture['enty']['powers']
   end
 end

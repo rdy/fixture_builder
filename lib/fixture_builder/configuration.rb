@@ -110,7 +110,45 @@ module FixtureBuilder
     end
 
     def fixtures_dir(path = '')
-      File.expand_path(File.join(fixture_directory, path))
+      subdirs = path.split('/')
+      path = subdirs.pop || ''
+      dir = File.expand_path(File.join(fixture_directory, *subdirs))
+
+      FileUtils.mkdir_p(dir)
+      File.join(dir, path)
+    end
+
+    # This allows for configuring fixtures for a given database table; you may
+    # set the model class for the table (e.g. for legacy tables) and the name
+    # of the resulting fixture file for the table (e.g. for nested fixtures).
+    #
+    # For example:
+    #
+    #   FixtureBuilder.configure do |fbuilder|
+    #     fbuilder.configure_tables(wibbles: {
+    #       class: Legacy::Things,
+    #       file: 'legacy/things'
+    #     })
+    #   end
+    #
+    # This will tell the builder to use the `Legacy::Things` class to serialize
+    # fixtured dumped from the `wibbles` table, and to dump the `wibbles` table
+    # into the `legacy_things.yml` file.  This also works with nested
+    # directories, which will map to namespaced fixtures.
+    def configure_tables(configuration)
+      configuration.each do |table_name, table_config|
+        table_name = table_name.to_s
+        fixture_classes.merge!(table_name => table_config[:class])
+        fixture_files.merge!(table_name => table_config[:file])
+      end
+    end
+
+    def fixture_classes
+      @fixture_classes ||= {}
+    end
+
+    def fixture_files
+      @fixture_files ||= {}
     end
 
     private
