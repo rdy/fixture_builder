@@ -38,6 +38,20 @@ class FixtureBuilderTest < Test::Unit::TestCase
     assert_equal 'king_of_gnomes', generated_fixture.keys.first
   end
 
+  def test_ivar_naming_with_uuid_primary_key
+    create_and_blow_away_old_db
+    force_fixture_generation
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.factory do
+        @you_know_who = Unnameable.create!
+      end
+    end
+    generated_fixture = YAML.load(File.open(test_path("fixtures/unnameables.yml")))
+    assert_equal 'you_know_who', generated_fixture.keys.first
+  end
+
   def test_serialization
     create_and_blow_away_old_db
     force_fixture_generation
