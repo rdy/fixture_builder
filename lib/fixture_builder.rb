@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'fixture_builder/delegations'
 require 'fixture_builder/configuration'
 require 'fixture_builder/namer'
@@ -18,7 +20,7 @@ module FixtureBuilder
   begin
     class Railtie < ::Rails::Railtie
       rake_tasks do
-        load "tasks/fixture_builder.rake"
+        load 'tasks/fixture_builder.rake'
       end
     end
   rescue LoadError, NameError
