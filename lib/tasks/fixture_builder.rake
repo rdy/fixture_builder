@@ -1,19 +1,21 @@
+# frozen_string_literal: true
+
 namespace :spec do
   namespace :fixture_builder do
-    desc "Deletes the generated fixtures in spec/fixtures"
+    desc 'Deletes the generated fixtures in spec/fixtures'
     task :clean do
-      FileUtils.rm_f("tmp/fixture_builder.yml")
+      FileUtils.rm_f('tmp/fixture_builder.yml')
       FileUtils.rm_f(Dir.glob("#{FixtureBuilder::FixturesPath.absolute_rails_fixtures_path}/*.yml"))
-      puts "Automatically generated fixtures removed"
+      puts 'Automatically generated fixtures removed'
     end
 
-    desc "Build the generated fixtures to spec/fixtures if dirty"
-    task :build => :environment do
+    desc 'Build the generated fixtures to spec/fixtures if dirty'
+    task build: :environment do
       ActiveRecord::Base.establish_connection(:test)
-      Dir.glob(File.join(::Rails.root, '{spec,test}', '**', 'fixture_builder.rb')).each{|file| require(file)}
+      Dir.glob(File.join(::Rails.root, '{spec,test}', '**', 'fixture_builder.rb')).each { |file| require(file) }
     end
 
-    desc "Clean and rebuild the generated fixtures to spec/fixtures"
-    task :rebuild => [:clean, :build]
+    desc 'Clean and rebuild the generated fixtures to spec/fixtures'
+    task rebuild: %i[clean build]
   end
 end
