@@ -47,13 +47,14 @@ module FixtureBuilder
     end
 
     def record_name(record_hash, table_name, row_index)
+      next_row_index = row_index.succ
       key = [table_name, record_hash['id'].to_i]
       name = if (name_proc = @model_name_procs[table_name])
-               name_proc.call(record_hash, row_index.succ!)
+               name_proc.call(record_hash, next_row_index)
              elsif (custom = @custom_names[key])
                custom
              else
-               inferred_record_name(record_hash, table_name, row_index)
+               inferred_record_name(record_hash, table_name, next_row_index)
              end
       @record_names[table_name] ||= []
       @record_names[table_name] << name
