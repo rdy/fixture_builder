@@ -110,7 +110,7 @@ module FixtureBuilder
           end
           if table_klass && table_klass < ActiveRecord::Base
             rows = table_klass.unscoped do
-              table_klass.order(:id).all.collect do |obj|
+              table_klass.all.collect do |obj|
                 attrs = obj.attributes.select do |attr_name|
                   column = table_klass.columns.find { |c| c.name == attr_name }
                   !column.virtual? if column
