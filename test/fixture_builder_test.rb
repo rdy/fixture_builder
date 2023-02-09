@@ -1,4 +1,4 @@
-# frozen_string_literal: true
+# frozen_string_literal: false
 
 require File.expand_path(File.join(File.dirname(__FILE__), 'test_helper'))
 
