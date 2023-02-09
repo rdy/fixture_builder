@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'rubygems'
 require 'bundler/setup'
 require 'test/unit'
@@ -32,40 +34,34 @@ class MagicalCreature < ActiveRecord::Base
   serialize :powers, Array
 
   if ActiveRecord::VERSION::MAJOR >= 4
-    default_scope -> { where(:deleted => false) }
+    default_scope -> { where(deleted: false) }
 
     attribute :virtual, ActiveRecord::Type::Integer.new
   else
-    default_scope :conditions => { :deleted => false }
+    default_scope conditions: { deleted: false }
   end
 end
 
 def create_and_blow_away_old_db
-  ActiveRecord::Base.configurations['test'] = {
-      'adapter' => 'sqlite3',
-      'database' => 'test.db'
-  }
+  ActiveRecord::Base.configurations = { 'test' => { 'adapter' => 'sqlite3', 'database' => 'test.db' } }
+
   ActiveRecord::Base.establish_connection(:test)
 
-  ActiveRecord::Base.connection.create_table(:magical_creatures, :force => true) do |t|
+  ActiveRecord::Base.connection.create_table(:magical_creatures, force: true) do |t|
     t.column :name, :string
     t.column :species, :string
     t.column :powers, :string
-    t.column :deleted, :boolean, :default => false, :null => false
+    t.column :deleted, :boolean, default: false, null: false
   end
 end
 
 def force_fixture_generation
-  begin
-    FileUtils.rm(File.expand_path("../../tmp/fixture_builder.yml", __FILE__))
-  rescue
-  end
+  FileUtils.rm(File.expand_path('../tmp/fixture_builder.yml', __dir__))
+rescue StandardError
 end
 
 def force_fixture_generation_due_to_differing_file_hashes
-  begin
-    path = File.expand_path("../../tmp/fixture_builder.yml", __FILE__)
-    File.write(path, "blah blah blah")
-  rescue
-  end
+  path = File.expand_path('../tmp/fixture_builder.yml', __dir__)
+  File.write(path, 'blah blah blah')
+rescue StandardError
 end

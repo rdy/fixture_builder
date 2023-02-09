@@ -1,3 +1,5 @@
+# frozen_string_literal: false
+
 require File.expand_path(File.join(File.dirname(__FILE__), 'test_helper'))
 
 class Model
@@ -13,8 +15,8 @@ class FixtureBuilderTest < Test::Unit::TestCase
 
   def test_name_with
     hash = {
-        'id' => 1,
-        'email' => 'bob@example.com'
+      'id' => 1,
+      'email' => 'bob@example.com'
     }
     FixtureBuilder.configure do |config|
       config.name_model_with Model do |record_hash, index|
@@ -29,12 +31,12 @@ class FixtureBuilderTest < Test::Unit::TestCase
     force_fixture_generation
 
     FixtureBuilder.configure do |fbuilder|
-      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.files_to_check += Dir[test_path('*.rb')]
       fbuilder.factory do
-        @king_of_gnomes = MagicalCreature.create(:name => 'robert', :species => 'gnome')
+        @king_of_gnomes = MagicalCreature.create(name: 'robert', species: 'gnome')
       end
     end
-    generated_fixture = YAML.load(File.open(test_path("fixtures/magical_creatures.yml")))
+    generated_fixture = YAML.load(File.open(test_path('fixtures/magical_creatures.yml')))
     assert_equal 'king_of_gnomes', generated_fixture.keys.first
   end
 
@@ -43,13 +45,13 @@ class FixtureBuilderTest < Test::Unit::TestCase
     force_fixture_generation
 
     FixtureBuilder.configure do |fbuilder|
-      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.files_to_check += Dir[test_path('*.rb')]
       fbuilder.factory do
-        @enty = MagicalCreature.create(:name => 'Enty', :species => 'ent',
-                                       :powers => %w{shading rooting seeding})
+        @enty = MagicalCreature.create(name: 'Enty', species: 'ent',
+                                       powers: %w[shading rooting seeding])
       end
     end
-    generated_fixture = YAML.load(File.open(test_path("fixtures/magical_creatures.yml")))
+    generated_fixture = YAML.load(File.open(test_path('fixtures/magical_creatures.yml')))
     assert_equal "---\n- shading\n- rooting\n- seeding\n", generated_fixture['enty']['powers']
   end
 
@@ -58,9 +60,9 @@ class FixtureBuilderTest < Test::Unit::TestCase
     force_fixture_generation
 
     FixtureBuilder.configure do |fbuilder|
-      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.files_to_check += Dir[test_path('*.rb')]
       fbuilder.factory do
-        MagicalCreature.create(:name => 'Uni', :species => 'unicorn', :powers => %w{rainbows flying})
+        MagicalCreature.create(name: 'Uni', species: 'unicorn', powers: %w[rainbows flying])
       end
     end
     generated_fixture = YAML.load(File.open(test_path('fixtures/magical_creatures.yml')))
@@ -76,11 +78,12 @@ class FixtureBuilderTest < Test::Unit::TestCase
   end
 
   def test_absolute_rails_fixtures_path
-    assert_equal File.expand_path('../../test/fixtures', __FILE__), FixtureBuilder::FixturesPath.absolute_rails_fixtures_path
+    assert_equal File.expand_path('../test/fixtures', __dir__),
+                 FixtureBuilder::FixturesPath.absolute_rails_fixtures_path
   end
 
   def test_fixtures_dir
-    assert_match /test\/fixtures$/, FixtureBuilder.configuration.send(:fixtures_dir).to_s
+    assert_match(%r{test/fixtures$}, FixtureBuilder.configuration.send(:fixtures_dir).to_s)
   end
 
   def test_rebuilding_due_to_differing_file_hashes
@@ -88,13 +91,13 @@ class FixtureBuilderTest < Test::Unit::TestCase
     force_fixture_generation_due_to_differing_file_hashes
 
     FixtureBuilder.configure do |fbuilder|
-      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.files_to_check += Dir[test_path('*.rb')]
       fbuilder.factory do
-        @enty = MagicalCreature.create(:name => 'Enty', :species => 'ent',
-                                       :powers => %w{shading rooting seeding})
+        @enty = MagicalCreature.create(name: 'Enty', species: 'ent',
+                                       powers: %w[shading rooting seeding])
       end
     end
-    generated_fixture = YAML.load(File.open(test_path("fixtures/magical_creatures.yml")))
+    generated_fixture = YAML.load(File.open(test_path('fixtures/magical_creatures.yml')))
     assert_equal "---\n- shading\n- rooting\n- seeding\n", generated_fixture['enty']['powers']
   end
 
@@ -103,15 +106,15 @@ class FixtureBuilderTest < Test::Unit::TestCase
     force_fixture_generation_due_to_differing_file_hashes
 
     FixtureBuilder.configure(use_sha1_digests: true) do |fbuilder|
-      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.files_to_check += Dir[test_path('*.rb')]
       fbuilder.factory do
-        @enty = MagicalCreature.create(:name => 'Enty', :species => 'ent',
-                                       :powers => %w{shading rooting seeding})
+        @enty = MagicalCreature.create(name: 'Enty', species: 'ent',
+                                       powers: %w[shading rooting seeding])
       end
-      first_modified_time = File.mtime(test_path("fixtures/magical_creatures.yml"))
+      first_modified_time = File.mtime(test_path('fixtures/magical_creatures.yml'))
       fbuilder.factory do
       end
-      second_modified_time = File.mtime(test_path("fixtures/magical_creatures.yml"))
+      second_modified_time = File.mtime(test_path('fixtures/magical_creatures.yml'))
       assert_equal first_modified_time, second_modified_time
     end
   end

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require File.expand_path(File.join(File.dirname(__FILE__), 'test_helper'))
 
 class Model
@@ -13,7 +15,7 @@ class AnotherModel
 end
 
 class MockFixture
-  def self.[](*args)
+  def self.[](*_args)
     '1'
   end
 
@@ -30,8 +32,8 @@ class NamerTest < Test::Unit::TestCase
 
   def test_name_with
     hash = {
-        'id' => 1,
-        'email' => 'bob@example.com'
+      'id' => 1,
+      'email' => 'bob@example.com'
     }
 
     @namer.name_model_with Model do |record_hash, index|
@@ -43,21 +45,21 @@ class NamerTest < Test::Unit::TestCase
 
   def test_record_name_without_name_with_or_custom_name
     hash = {
-        'id' => 1,
-        'email' => 'bob@example.com'
+      'id' => 1,
+      'email' => 'bob@example.com'
     }
     assert_equal 'models_001', @namer.record_name(hash, Model.table_name, '000')
   end
 
   def test_record_name_with_inferred_record_name
     hash = {
-        'id' => 1,
-        'title' => 'foo',
-        'email' => 'bob@example.com'
+      'id' => 1,
+      'title' => 'foo',
+      'email' => 'bob@example.com'
     }
     assert_equal 'foo', @namer.record_name(hash, Model.table_name, '000')
   end
-  
+
   def test_name_not_unique_across_tables
     hash = {
       'id' => 1,

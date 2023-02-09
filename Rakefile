@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'bundler'
 include Rake::DSL if defined?(Rake::DSL)
 Bundler::GemHelper.install_tasks
@@ -8,4 +10,4 @@ Rake::TestTask.new(:test) do |t|
   t.verbose = false
 end
 
-task :default => :test
+task default: :test
