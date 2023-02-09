@@ -111,7 +111,11 @@ module FixtureBuilder
           if table_klass && table_klass < ActiveRecord::Base
             rows = table_klass.unscoped do
               table_klass.order(:id).all.collect do |obj|
-                attrs = obj.attributes.select { |attr_name| table_klass.column_names.include?(attr_name) }
+                attrs = obj.attributes.select do |attr_name|
+                  column = table_klass.columns.find { |c| c.name == attr_name }
+                  !column.virtual? if column
+                end
+
                 attrs.each_with_object({}) do |(attr_name, value), hash|
                   hash[attr_name] = serialized_value_if_needed(table_klass, attr_name, value)
                 end
