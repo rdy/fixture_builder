@@ -147,7 +147,7 @@ By default these are set as:
 * files_to_check: %w{ db/schema.rb }
 * fixture_builder_file: RAILS_ROOT/tmp/fixture_builder.yml
 * record_name_fields: %w{ unique_name display_name name title username login }
-* skip_tables: %w{ schema_migrations }
+* skip_tables: %w{ schema_migrations ar_internal_metadata }
 * select_sql: SELECT * FROM %{table}
 * delete_sql: DELETE FROM %{table}
 
