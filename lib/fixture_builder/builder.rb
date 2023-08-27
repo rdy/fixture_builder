@@ -92,38 +92,33 @@ module FixtureBuilder
     end
 
     def dump_tables
-      default_date_format = Date::DATE_FORMATS[:default]
-      Date::DATE_FORMATS[:default] = Date::DATE_FORMATS[:db]
-      begin
-        fixtures = tables.inject([]) do |files, table_name|
-          table_klass = fixture_classes[table_name] || table_name.classify.constantize rescue nil
-          if table_klass && table_klass < ActiveRecord::Base
-            rows = table_klass.unscoped do
-              table_klass.order(:id).all.collect do |obj|
-                attrs = obj.attributes.select { |attr_name| table_klass.column_names.include?(attr_name) }
-                attrs.inject({}) do |hash, (attr_name, value)|
-                  hash[attr_name] = serialized_value_if_needed(table_klass, attr_name, value)
-                  hash
-                end
+      fixtures = tables.inject([]) do |files, table_name|
+        table_klass = fixture_classes[table_name] || table_name.classify.constantize rescue nil
+        if table_klass && table_klass < ActiveRecord::Base
+          rows = table_klass.unscoped do
+            table_klass.order(:id).all.collect do |obj|
+              attrs = obj.attributes.select { |attr_name| table_klass.column_names.include?(attr_name) }
+              attrs.inject({}) do |hash, (attr_name, value)|
+                hash[attr_name] = serialized_value_if_needed(table_klass, attr_name, value)
+                hash
               end
             end
-          else
-            rows = ActiveRecord::Base.connection.select_all(select_sql % {table: ActiveRecord::Base.connection.quote_table_name(table_name)})
           end
-          next files if rows.empty?
-
-          row_index = '000'
-          fixture_data = rows.inject({}) do |hash, record|
-            hash.merge(record_name(record, table_name, row_index) => record)
-          end
-
-          write_fixture_file fixture_data, table_name
-
-          files + [File.basename(fixture_file(table_name))]
+        else
+          rows = ActiveRecord::Base.connection.select_all(select_sql % {table: ActiveRecord::Base.connection.quote_table_name(table_name)})
         end
-      ensure
-        Date::DATE_FORMATS[:default] = default_date_format
+        next files if rows.empty?
+
+        row_index = '000'
+        fixture_data = rows.inject({}) do |hash, record|
+          hash.merge(record_name(record, table_name, row_index) => record)
+        end
+
+        write_fixture_file fixture_data, table_name
+
+        files + [File.basename(fixture_file(table_name))]
       end
+
       say "Built #{fixtures.to_sentence}"
     end
 
