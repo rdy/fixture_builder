@@ -29,6 +29,56 @@ end
 require 'sqlite3'
 require 'fixture_builder'
 
+class WizardData
+  attr_reader :level, :title, :allies
+
+  def initialize(level:, title:, allies:)
+    @level = level
+    @title = title
+    @allies = allies
+  end
+
+  def ==(other)
+    other.is_a?(self.class) && other.to_h == to_h
+  end
+
+  def to_h
+    { level: level, title: title, allies: allies }
+  end
+end
+
+class WizardDataType < ActiveRecord::Type::Json
+  def cast(value)
+    case value
+    when WizardData, nil
+      value
+    when Hash
+      wizard_data(value)
+    when String
+      deserialize(value)
+    end
+  end
+
+  def deserialize(value)
+    attributes = super
+    wizard_data(attributes) if attributes
+  end
+
+  def serialize(value)
+    super(value&.to_h)
+  end
+
+  private
+
+  def wizard_data(attributes)
+    WizardData.new(
+      level: attributes['level'],
+      title: attributes['title'],
+      allies: attributes['allies']
+    )
+  end
+end
+
 class MagicalCreature < ActiveRecord::Base
   validates_presence_of :name, :species
   serialize :powers, type: Array
@@ -36,6 +86,7 @@ class MagicalCreature < ActiveRecord::Base
   default_scope -> { where(deleted: false) }
 
   attribute :virtual, ActiveRecord::Type::Integer.new
+  attribute :wizard_data, WizardDataType.new
 end
 
 def create_and_blow_away_old_db
@@ -47,6 +98,7 @@ def create_and_blow_away_old_db
     t.column :name, :string
     t.column :species, :string
     t.column :powers, :string
+    t.column :wizard_data, :json
     t.column :deleted, :boolean, default: false, null: false
   end
 end

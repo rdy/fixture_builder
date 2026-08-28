@@ -69,6 +69,41 @@ class FixtureBuilderTest < Test::Unit::TestCase
     assert !generated_fixture['uni'].key?('virtual')
   end
 
+  def test_custom_json_attribute_type_round_trips_through_fixtures
+    create_and_blow_away_old_db
+    force_fixture_generation
+    wizard_data = WizardData.new(
+      level: 99,
+      title: 'The Grey',
+      allies: %w[Frodo Aragorn]
+    )
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.files_to_check += Dir[test_path('*.rb')]
+      fbuilder.factory do
+        MagicalCreature.create!(
+          name: 'Gandalf',
+          species: 'wizard',
+          wizard_data: wizard_data
+        )
+      end
+    end
+
+    generated_fixture = YAML.safe_load_file(test_path('fixtures/magical_creatures.yml'))
+    assert_equal(
+      { 'level' => 99, 'title' => 'The Grey', 'allies' => %w[Frodo Aragorn] },
+      generated_fixture.dig('gandalf', 'wizard_data')
+    )
+
+    MagicalCreature.delete_all
+    ActiveRecord::FixtureSet.create_fixtures(
+      test_path('fixtures'),
+      MagicalCreature.table_name
+    )
+
+    assert_equal wizard_data, MagicalCreature.find_by!(name: 'Gandalf').wizard_data
+  end
+
   def test_configure
     FixtureBuilder.configure do |config|
       assert config.is_a?(FixtureBuilder::Configuration)
