@@ -28,7 +28,7 @@ Gem::Specification.new do |s|
   s.add_dependency "activesupport", ">= 8.0"
   s.add_dependency "digest"
   s.add_dependency "fileutils"
-  s.add_dependency "hashdiff"
+  s.add_dependency "hashdiff", ">= 1.0"
   s.add_dependency "tempfile"
   s.add_development_dependency "rails", ">= 8.0"
   s.add_development_dependency "rake"

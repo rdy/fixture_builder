@@ -9,13 +9,6 @@ require "tempfile"
 require "fixture_builder/generation_lock"
 
 module FixtureBuilder
-  Differ = if Object.const_defined?(:Hashdiff)
-    # hashdiff version >= 1.0.0
-    Hashdiff
-  else
-    HashDiff
-  end
-
   class Configuration
     include Delegations::Namer
 
@@ -234,7 +227,7 @@ module FixtureBuilder
 
     def print_hash_diff(reason, hashes_from_disk, hashes_from_config)
       puts "=> rebuilding fixtures because #{reason} (see http://www.rubydoc.info/gems/hashdiff for diff syntax):"
-      Differ.diff(hashes_from_disk, hashes_from_config).each do |diff|
+      Hashdiff.diff(hashes_from_disk, hashes_from_config).each do |diff|
         print "   "
         p diff
       end

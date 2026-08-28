@@ -24,6 +24,8 @@
   ([#81](https://github.com/rdy/fixture_builder/pull/81)).
 - Remove compatibility code for unsupported Rails fixture APIs and rely on the
   current `ActiveRecord::FixtureSet` and database-task fixture path APIs.
+- Require Hashdiff 1.0 or newer and remove compatibility with its pre-1.0
+  `HashDiff` constant.
 
 ### Deprecated
 
