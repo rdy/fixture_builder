@@ -8,12 +8,12 @@ require "fixture_builder/fixtures_path"
 
 module FixtureBuilder
   class << self
-    def configuration(opts = {})
-      @configuration ||= FixtureBuilder::Configuration.new(opts)
+    def configuration
+      @configuration ||= FixtureBuilder::Configuration.new
     end
 
-    def configure(opts = {})
-      yield configuration(opts)
+    def configure
+      yield configuration
     end
   end
 
