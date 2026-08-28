@@ -201,6 +201,45 @@ class FixtureBuilderTest < Test::Unit::TestCase
     assert_false factory_called
   end
 
+  def test_lock_path_tracks_fixture_builder_file
+    configuration = FixtureBuilder::Configuration.new
+    configuration.fixture_builder_file = "tmp/first-fixture-builder.yml"
+    assert_equal "#{File.expand_path(configuration.fixture_builder_file)}.lock",
+      configuration.lock_path
+
+    configuration.fixture_builder_file = "tmp/second-fixture-builder.yml"
+    assert_equal "#{File.expand_path(configuration.fixture_builder_file)}.lock",
+      configuration.lock_path
+  end
+
+  def test_fresh_manifest_returns_without_acquiring_lock
+    create_and_blow_away_old_db
+    force_fixture_generation
+    builds = 0
+    lock_path = nil
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      lock_path = fbuilder.lock_path
+      fbuilder.factory do
+        builds += 1
+        @enty = MagicalCreature.create(name: "Enty", species: "ent")
+      end
+    end
+
+    assert_path_exist lock_path
+    FileUtils.rm(lock_path)
+    FixtureBuilder.instance_variable_set(:@configuration, nil)
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.factory { builds += 1 }
+    end
+
+    assert_equal 1, builds
+    assert_path_not_exist lock_path
+  end
+
   def test_skips_rebuild_for_valid_empty_fixture_snapshot
     create_and_blow_away_old_db
     force_fixture_generation
