@@ -29,19 +29,11 @@ module FixtureBuilder
 
     def load_legacy_fixtures
       legacy_fixtures.each do |fixture_file|
-        fixtures = fixtures_class.create_fixtures(File.dirname(fixture_file), File.basename(fixture_file, ".*"))
-        populate_custom_names(fixtures)
-      end
-    end
-
-    # Rails 3.0 and 3.1+ support
-    def fixtures_class
-      if defined?(ActiveRecord::FixtureSet)
-        ActiveRecord::FixtureSet
-      elsif defined?(ActiveRecord::Fixtures)
-        ActiveRecord::Fixtures
-      else
-        ::Fixtures
+        fixture_sets = ActiveRecord::FixtureSet.create_fixtures(
+          File.dirname(fixture_file),
+          File.basename(fixture_file, ".*")
+        )
+        populate_custom_names(fixture_sets)
       end
     end
 
@@ -85,9 +77,7 @@ module FixtureBuilder
     end
 
     def delete_yml_files
-      FileUtils.rm(*tables.map { |t| fixture_file(t) })
-    rescue
-      nil
+      FileUtils.rm_f(tables.map { |t| fixture_file(t) })
     end
 
     # standard:disable Rails/Output

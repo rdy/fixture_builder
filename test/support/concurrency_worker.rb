@@ -98,10 +98,17 @@ if scenario == "fork_threads"
         thread_role
       )
       barrier = Module.new do
-        define_method(:rebuild_fixtures?) do |*args, **kwargs|
-          result = kwargs.empty? ? super(*args) : super(*args, **kwargs)
-          append_line(preflight_path, thread_role)
-          wait_for_lines(preflight_path, thread_count)
+        define_method(:fixture_builder_preflight_path) { preflight_path }
+        define_method(:fixture_builder_thread_role) { thread_role }
+        define_method(:fixture_builder_thread_count) { thread_count }
+        private :fixture_builder_preflight_path,
+          :fixture_builder_thread_role,
+          :fixture_builder_thread_count
+
+        def rebuild_fixtures?(...)
+          result = super
+          append_line(fixture_builder_preflight_path, fixture_builder_thread_role)
+          wait_for_lines(fixture_builder_preflight_path, fixture_builder_thread_count)
           result
         end
       end
@@ -201,12 +208,16 @@ configuration = configuration_for(
 
 if scenario == "source_change"
   barrier = Module.new do
-    define_method(:rebuild_fixtures?) do |*args, **kwargs|
-      result = kwargs.empty? ? super(*args) : super(*args, **kwargs)
+    define_method(:fixture_builder_preflight_path) { preflight_path }
+    define_method(:fixture_builder_role) { role }
+    private :fixture_builder_preflight_path, :fixture_builder_role
+
+    def rebuild_fixtures?(...)
+      result = super
       unless @preflight_barrier_complete
         @preflight_barrier_complete = true
-        append_line(preflight_path, role)
-        wait_for_lines(preflight_path, 2)
+        append_line(fixture_builder_preflight_path, fixture_builder_role)
+        wait_for_lines(fixture_builder_preflight_path, 2)
       end
       result
     end

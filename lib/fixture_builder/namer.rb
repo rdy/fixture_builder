@@ -30,18 +30,23 @@ module FixtureBuilder
       end
     end
 
-    def populate_custom_names(created_fixtures)
-      # Rails 3.1+, create_fixtures returns an array of Fixtures objects
-      unless created_fixtures.first.is_a? Array
-        # merge all fixtures hashes
-        created_fixtures = created_fixtures.inject({}) { |hash, fixtures| hash.merge(fixtures.fixtures) }
+    def populate_custom_names(fixture_sets)
+      fixtures_by_name = if fixture_sets.all? { |fixture_set| fixture_set.respond_to?(:fixtures) }
+        fixture_sets.inject({}) do |fixtures, fixture_set|
+          fixtures.merge(fixture_set.fixtures)
+        end
+      else
+        FixtureBuilder.deprecator.warn(
+          "Passing hashes or fixture tuples to populate_custom_names is deprecated and will be " \
+            "removed in FixtureBuilder 0.7",
+          caller_locations
+        )
+        fixture_sets
       end
 
-      # Rails 3.0 and earlier, create_fixtures returns an array of tuples
-      created_fixtures.each do |fixture|
-        name = fixture[0]
-        id = fixture[1]["id"].to_i
-        table_name = fixture[1].model_class.table_name
+      fixtures_by_name.each do |name, fixture|
+        id = fixture["id"].to_i
+        table_name = fixture.model_class.table_name
         key = [table_name, id]
         @custom_names[key] = name
       end
@@ -75,7 +80,7 @@ module FixtureBuilder
         inferred_name = name.underscore.gsub(/\W/, " ").squeeze(" ").tr(" ", "_")
         count = 0
         if @record_names[table_name]
-          count = @record_names[table_name].count { |name| name.to_s.starts_with?(inferred_name) }
+          count = @record_names[table_name].count { |name| name.to_s.start_with?(inferred_name) }
         end
         return count.zero? ? inferred_name : "#{inferred_name}_#{count}"
       end

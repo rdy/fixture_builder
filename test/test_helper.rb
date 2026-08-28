@@ -22,25 +22,6 @@ require "active_support/concern"
 require "active_record"
 require "active_record/fixtures"
 
-def create_fixtures(*table_names, &block)
-  fixture_set = ActiveRecord::FixtureSet
-
-  # FixtureBuilder rewrites fixture files within the test process. Clear Rails'
-  # loaded-fixture cache so each load inserts records from regenerated files.
-  fixture_set.reset_cache
-
-  # Rails 8.2 (not yet released) caches parsed fixture files separately from
-  # loaded fixture sets. Disable that cache when its API is available so
-  # rewritten YAML is reparsed; Rails 8.0 and 8.1 use the original load path.
-  if fixture_set.respond_to?(:without_parsing_cache)
-    fixture_set.without_parsing_cache do
-      fixture_set.create_fixtures(ActiveSupport::TestCase.fixture_path, table_names, {}, &block)
-    end
-  else
-    fixture_set.create_fixtures(ActiveSupport::TestCase.fixture_path, table_names, {}, &block)
-  end
-end
-
 require "sqlite3"
 require "fixture_builder"
 
@@ -121,12 +102,11 @@ def create_and_blow_away_old_db
 end
 
 def force_fixture_generation
-  FileUtils.rm(File.expand_path("../tmp/fixture_builder.yml", __dir__))
-rescue
+  FileUtils.rm_f(File.expand_path("../tmp/fixture_builder.yml", __dir__))
 end
 
 def force_fixture_generation_due_to_differing_file_hashes
   path = File.expand_path("../tmp/fixture_builder.yml", __dir__)
+  FileUtils.mkdir_p(File.dirname(path))
   File.write(path, "blah blah blah")
-rescue
 end

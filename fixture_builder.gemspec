@@ -9,10 +9,10 @@ Gem::Specification.new do |s|
   s.platform = Gem::Platform::RUBY
   s.required_ruby_version = ">= 3.3"
   s.authors = ["Ryan Dy", "David Stevenson", "Chad Woolley", "Grant Hutchins"]
-  s.description = "FixtureBuilder allows testers to use their existing factories, like FactoryGirl, to generate high performance fixtures that can be shared across all your tests and development environment.  The best of all worlds!  Speed, Maintainability, Flexibility, Consistency, and Simplicity!"
+  s.description = "FixtureBuilder generates Rails fixture files from ordinary Active Record model code, including object mothers such as FactoryBot. This avoids difficult-to-maintain hand-written YAML while allowing the same data to be loaded quickly across tests."
   s.email = ["mail@ryandy.com", "gems@nertzy.com"]
   s.homepage = "https://github.com/rdy/fixture_builder"
-  s.summary = "Build Rails fixtures using object mother factories"
+  s.summary = "Build reusable Rails fixtures from application data"
   s.licenses = ["MIT"]
   s.metadata = {
     "bug_tracker_uri" => "#{s.homepage}/issues",

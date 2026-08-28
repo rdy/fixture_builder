@@ -22,9 +22,14 @@
 - Coordinate fixture generation across threads and processes so concurrent
   workers reuse one complete snapshot instead of interleaving their writes
   ([#81](https://github.com/rdy/fixture_builder/pull/81)).
+- Remove compatibility code for unsupported Rails fixture APIs and rely on the
+  current `ActiveRecord::FixtureSet` and database-task fixture path APIs.
 
 ### Deprecated
 
+- Deprecate passing hashes or arrays of fixture tuples to
+  `Namer#populate_custom_names` or its `Builder` delegation; support will be
+  removed in FixtureBuilder 0.7.
 - Deprecate `use_sha1_digests`, which is ignored because SHA-256 is always used.
   It will be removed in FixtureBuilder 0.7
   ([#87](https://github.com/rdy/fixture_builder/pull/87)).
