@@ -13,5 +13,6 @@ elsif rails_version
   gem "rails", rails_version
 end
 
+gem "ruby-lsp", require: false
 gem "standard", require: false
 gem "standard-rails", require: false
