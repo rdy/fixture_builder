@@ -112,6 +112,49 @@ class FixtureBuilderTest < Test::Unit::TestCase
     assert @called
   end
 
+  def test_deprecator_has_fixture_builder_metadata
+    assert_equal "0.7", FixtureBuilder.deprecator.deprecation_horizon
+    assert_equal "FixtureBuilder", FixtureBuilder.deprecator.gem_name
+  end
+
+  def test_configuration_accepts_deprecated_use_sha1_digests_option_when_memoized
+    configuration = FixtureBuilder.configuration
+
+    _output, warning = capture_output do
+      assert_same configuration, FixtureBuilder.configuration(use_sha1_digests: true)
+    end
+
+    assert_match(
+      /use_sha1_digests is deprecated and will be removed in FixtureBuilder 0.7; it is ignored because SHA-256 is always used/,
+      warning
+    )
+  end
+
+  def test_configuration_rejects_unknown_options
+    assert_raise(ArgumentError) do
+      FixtureBuilder.configuration(unknown: true)
+    end
+  end
+
+  def test_configure_accepts_deprecated_use_sha1_digests_option
+    _output, warning = capture_output do
+      FixtureBuilder.configure(use_sha1_digests: true) do |config|
+        assert_instance_of FixtureBuilder::Configuration, config
+      end
+    end
+
+    assert_match(
+      /use_sha1_digests is deprecated and will be removed in FixtureBuilder 0.7; it is ignored because SHA-256 is always used/,
+      warning
+    )
+  end
+
+  def test_configure_rejects_unknown_options
+    assert_raise(ArgumentError) do
+      FixtureBuilder.configure(unknown: true) { flunk("configuration block should not run") }
+    end
+  end
+
   def test_absolute_rails_fixtures_path
     assert_equal File.expand_path("../test/fixtures", __dir__),
       FixtureBuilder::FixturesPath.absolute_rails_fixtures_path
