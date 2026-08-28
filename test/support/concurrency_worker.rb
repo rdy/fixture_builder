@@ -57,14 +57,18 @@ def configuration_for(source_path, fixture_directory, manifest_path, event_path,
   configuration.fixture_directory = fixture_directory
   configuration.fixture_builder_file = manifest_path
   instrumentation = Module.new do
-    define_method(:invalidate_config) do
-      append_line(event_path, "#{role}:enter")
-      super()
+    define_method(:fixture_builder_event_path) { event_path }
+    define_method(:fixture_builder_role) { role }
+    private :fixture_builder_event_path, :fixture_builder_role
+
+    def invalidate_config(...)
+      append_line(fixture_builder_event_path, "#{fixture_builder_role}:enter")
+      super
     end
 
-    define_method(:write_config) do
-      super()
-      append_line(event_path, "#{role}:exit")
+    def write_config(...)
+      super
+      append_line(fixture_builder_event_path, "#{fixture_builder_role}:exit")
     end
   end
   configuration.singleton_class.prepend(instrumentation)
