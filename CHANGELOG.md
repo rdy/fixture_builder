@@ -23,6 +23,12 @@
   workers reuse one complete snapshot instead of interleaving their writes
   ([#81](https://github.com/rdy/fixture_builder/pull/81)).
 
+### Deprecated
+
+- Deprecate `use_sha1_digests`, which is ignored because SHA-256 is always used.
+  It will be removed in FixtureBuilder 0.7
+  ([#87](https://github.com/rdy/fixture_builder/pull/87)).
+
 ### Fixed
 
 - Generate model-backed fixture rows in primary-key order so fixture output

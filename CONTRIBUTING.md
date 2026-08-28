@@ -57,6 +57,27 @@ RAILS_BRANCH=main bundle update --all
 RAILS_BRANCH=main bundle exec rake
 ```
 
+## Changes and releases
+
+FixtureBuilder follows [Semantic Versioning](https://semver.org/). Before 1.0,
+minor releases are the compatibility boundary: breaking changes belong in a new
+minor release, while patch releases remain backward compatible.
+
+Public APIs must be deprecated for at least one minor release before removal.
+For example, an API deprecated in 0.6 remains available throughout 0.6 and may
+be removed in 0.7.
+
+Maintainers update `CHANGELOG.md` when preparing a release. The changelog names
+the next planned stable release in its Unreleased section and does not include
+release-candidate sections.
+
+Leave `lib/fixture_builder/version.rb` alone in feature pull requests. When
+cutting a stable release, a maintainer updates the version and replaces the
+Unreleased changelog heading with the version and release date in the same
+dedicated `VERSION x.y.z` commit. That exact commit is tagged, then the gem is
+built and published immediately afterward. Do not bump the version ahead of the
+release.
+
 ## Code style
 
 Ruby style is enforced by
