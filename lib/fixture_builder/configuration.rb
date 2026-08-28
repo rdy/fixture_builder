@@ -1,29 +1,29 @@
 # frozen_string_literal: true
 
-require 'active_support/core_ext'
-require 'active_support/core_ext/string'
-require 'digest'
-require 'fileutils'
-require 'hashdiff'
+require "active_support/core_ext"
+require "active_support/core_ext/string"
+require "digest"
+require "fileutils"
+require "hashdiff"
 
 module FixtureBuilder
   Differ = if Object.const_defined?(:Hashdiff)
-             # hashdiff version >= 1.0.0
-             Hashdiff
-           else
-             HashDiff
-           end
+    # hashdiff version >= 1.0.0
+    Hashdiff
+  else
+    HashDiff
+  end
 
   class Configuration
     include Delegations::Namer
 
     ACCESSIBLE_ATTRIBUTES = %i[select_sql delete_sql skip_tables files_to_check record_name_fields
-                               fixture_builder_file fixture_directory after_build legacy_fixtures model_name_procs
-                               write_empty_files].freeze
+      fixture_builder_file fixture_directory after_build legacy_fixtures model_name_procs
+      write_empty_files].freeze
     attr_accessor(*ACCESSIBLE_ATTRIBUTES)
 
-    SCHEMA_FILES = ['db/schema.rb', 'db/development_structure.sql', 'db/test_structure.sql',
-                    'db/production_structure.sql'].freeze
+    SCHEMA_FILES = ["db/schema.rb", "db/development_structure.sql", "db/test_structure.sql",
+      "db/production_structure.sql"].freeze
 
     def initialize(opts = {})
       @namer = Namer.new(self)
@@ -49,27 +49,27 @@ module FixtureBuilder
     end
 
     def select_sql
-      @select_sql ||= 'SELECT * FROM %<table>s'
+      @select_sql ||= "SELECT * FROM %<table>s"
     end
 
     def select_sql=(sql)
-      if sql =~ /%s/
+      if /%s/.match?(sql)
         ActiveSupport::Deprecation.warn("Passing '%s' into select_sql is deprecated. Please use '%<table>s' instead.",
-                                        caller)
-        sql = sql.sub(/%s/, '%<table>s')
+          caller)
+        sql = sql.sub("%s", "%<table>s")
       end
       @select_sql = sql
     end
 
     def delete_sql
-      @delete_sql ||= 'DELETE FROM %<table>s'
+      @delete_sql ||= "DELETE FROM %<table>s"
     end
 
     def delete_sql=(sql)
-      if sql =~ /%s/
+      if /%s/.match?(sql)
         ActiveSupport::Deprecation.warn("Passing '%s' into delete_sql is deprecated. Please use '%<table>s' instead.",
-                                        caller)
-        sql = sql.sub(/%s/, '%<table>s')
+          caller)
+        sql = sql.sub("%s", "%<table>s")
       end
       @delete_sql = sql
     end
@@ -83,7 +83,7 @@ module FixtureBuilder
     end
 
     def schema_definition_files
-      Dir['db/*'].each_with_object([]) do |file, result|
+      Dir["db/*"].each_with_object([]) do |file, result|
         result << file if SCHEMA_FILES.include?(file)
       end
     end
@@ -91,7 +91,7 @@ module FixtureBuilder
     def files_to_check=(files)
       @files_to_check = files
       @file_hashes = file_hashes
-      @files_to_check
+      @files_to_check # standard:disable Lint/Void
     end
 
     def record_name_fields
@@ -99,7 +99,7 @@ module FixtureBuilder
     end
 
     def fixture_builder_file
-      @fixture_builder_file ||= ::Rails.root.join('tmp', 'fixture_builder.yml')
+      @fixture_builder_file ||= ::Rails.root.join("tmp/fixture_builder.yml")
     end
 
     def name_model_with(model_class, &block)
@@ -114,7 +114,7 @@ module FixtureBuilder
       @fixture_directory ||= FixturesPath.absolute_rails_fixtures_path
     end
 
-    def fixtures_dir(path = '')
+    def fixtures_dir(path = "")
       File.expand_path(File.join(fixture_directory, path))
     end
 
@@ -135,9 +135,10 @@ module FixtureBuilder
 
     def write_config
       FileUtils.mkdir_p(File.dirname(fixture_builder_file))
-      File.open(fixture_builder_file, 'w') { |f| f.write(YAML.dump(@file_hashes)) }
+      File.write(fixture_builder_file, YAML.dump(@file_hashes))
     end
 
+    # standard:disable Rails/Output
     def rebuild_fixtures?
       file_hashes_from_disk = @file_hashes
       file_hashes_from_config = read_config
@@ -148,14 +149,15 @@ module FixtureBuilder
         puts "=> rebuilding fixtures because fixture_builder config file #{fixture_builder_file} does not exist"
         return true
       elsif file_hashes_from_disk != file_hashes_from_config
-        puts '=> rebuilding fixtures because one or more of the following files have changed (see http://www.rubydoc.info/gems/hashdiff for diff syntax):'
+        puts "=> rebuilding fixtures because one or more of the following files have changed (see http://www.rubydoc.info/gems/hashdiff for diff syntax):"
         Differ.diff(file_hashes_from_disk, file_hashes_from_config).map do |diff|
-          print '   '
+          print "   "
           p diff
         end
         return true
       end
       false
     end
+    # standard:enable Rails/Output
   end
 end
