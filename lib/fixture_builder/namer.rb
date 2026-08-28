@@ -9,6 +9,7 @@ module FixtureBuilder
       @custom_names = {}
       @model_name_procs = {}
       @record_names = {}
+      @row_counters = Hash.new(0)
     end
 
     def name_model_with(model_class, &block)
@@ -46,23 +47,28 @@ module FixtureBuilder
       end
     end
 
-    def record_name(record_hash, table_name, row_index)
+    def record_name(record_hash, table_name)
       key = [table_name, record_hash['id'].to_i]
       name = if (name_proc = @model_name_procs[table_name])
-               name_proc.call(record_hash, row_index.succ!)
+               name_proc.call(record_hash, next_row_index(table_name))
              elsif (custom = @custom_names[key])
                custom
              else
-               inferred_record_name(record_hash, table_name, row_index)
+               inferred_record_name(record_hash, table_name)
              end
       @record_names[table_name] ||= []
       @record_names[table_name] << name
       name.to_s
     end
 
-    protected
+    private
 
-    def inferred_record_name(record_hash, table_name, row_index)
+    def next_row_index(table_name)
+      @row_counters[table_name] += 1
+      format('%03d', @row_counters[table_name])
+    end
+
+    def inferred_record_name(record_hash, table_name)
       record_name_fields.each do |try|
         next unless (name = record_hash[try])
 
@@ -73,7 +79,7 @@ module FixtureBuilder
         end
         return count.zero? ? inferred_name : "#{inferred_name}_#{count}"
       end
-      [table_name, row_index.succ!].join('_')
+      [table_name, next_row_index(table_name)].join('_')
     end
   end
 end

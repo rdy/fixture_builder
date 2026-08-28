@@ -23,7 +23,7 @@ class FixtureBuilderTest < Test::Unit::TestCase
         [record_hash['email'].split('@').first, index].join('_')
       end
     end
-    assert_equal 'bob_001', FixtureBuilder.configuration.send(:record_name, hash, Model.table_name, '000')
+    assert_equal 'bob_001', FixtureBuilder.configuration.send(:record_name, hash, Model.table_name)
   end
 
   def test_ivar_naming

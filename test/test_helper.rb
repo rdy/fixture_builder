@@ -31,15 +31,11 @@ require 'fixture_builder'
 
 class MagicalCreature < ActiveRecord::Base
   validates_presence_of :name, :species
-  serialize :powers, Array
+  serialize :powers, type: Array
 
-  if ActiveRecord::VERSION::MAJOR >= 4
-    default_scope -> { where(deleted: false) }
+  default_scope -> { where(deleted: false) }
 
-    attribute :virtual, ActiveRecord::Type::Integer.new
-  else
-    default_scope conditions: { deleted: false }
-  end
+  attribute :virtual, ActiveRecord::Type::Integer.new
 end
 
 def create_and_blow_away_old_db
