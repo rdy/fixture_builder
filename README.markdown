@@ -1,7 +1,7 @@
 FixtureBuilder
 ==============
 
-[![Build Status](https://secure.travis-ci.org/rdy/fixture_builder.png)](http://travis-ci.org/rdy/fixture_builder)
+[![Build Status](https://github.com/rdy/fixture_builder/actions/workflows/ci.yml/badge.svg)](https://github.com/rdy/fixture_builder/actions/workflows/ci.yml)
 
 Based on the code from fixture_scenarios, by Chris Wanstrath.  Allows you to build file fixtures from
 existing object mother factories, like FactoryGirl, to generate high performance fixtures that can be
