@@ -1,0 +1,55 @@
+name: build
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  schedule:
+    - cron: "59 1 * * 6" # weekly
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Ruby ${{ matrix.ruby-version }} / Rails ${{ matrix.rails.label }}
+    runs-on: ubuntu-latest
+    env:
+      CI: true
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby-version: ["3.3", "3.4", "4.0"]
+        rails:
+          - { label: "8.0", env: "RAILS_VERSION=~> 8.0.0" }
+          - { label: "8.1", env: "RAILS_VERSION=~> 8.1.0" }
+        allow-failure: [false]
+        include:
+          - ruby-version: "4.0"
+            rails: { label: "main", env: "RAILS_BRANCH=main" }
+            allow-failure: true
+          - ruby-version: "4.0"
+            rails: { label: "8-1-stable", env: "RAILS_BRANCH=8-1-stable" }
+            allow-failure: true
+          - ruby-version: "4.0"
+            rails: { label: "8-0-stable", env: "RAILS_BRANCH=8-0-stable" }
+            allow-failure: true
+          - ruby-version: "ruby-head"
+            rails: { label: "8.1", env: "RAILS_VERSION=~> 8.1.0" }
+            allow-failure: true
+    continue-on-error: ${{ matrix.allow-failure }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Select Rails version
+        env:
+          RAILS_ENV: ${{ matrix.rails.env }}
+        run: echo "$RAILS_ENV" >> "$GITHUB_ENV"
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby-version }}
+          bundler-cache: true
+          cache-version: ${{ matrix.rails.env }}
+      - name: Run tests
+        run: bundle exec rake
