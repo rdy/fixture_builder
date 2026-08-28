@@ -23,7 +23,22 @@ require 'active_record'
 require 'active_record/fixtures'
 
 def create_fixtures(*table_names, &block)
-  Fixtures.create_fixtures(ActiveSupport::TestCase.fixture_path, table_names, {}, &block)
+  fixture_set = ActiveRecord::FixtureSet
+
+  # FixtureBuilder rewrites fixture files within the test process. Clear Rails'
+  # loaded-fixture cache so each load inserts records from regenerated files.
+  fixture_set.reset_cache
+
+  # Rails 8.2 (not yet released) caches parsed fixture files separately from
+  # loaded fixture sets. Disable that cache when its API is available so
+  # rewritten YAML is reparsed; Rails 8.0 and 8.1 use the original load path.
+  if fixture_set.respond_to?(:without_parsing_cache)
+    fixture_set.without_parsing_cache do
+      fixture_set.create_fixtures(ActiveSupport::TestCase.fixture_path, table_names, {}, &block)
+    end
+  else
+    fixture_set.create_fixtures(ActiveSupport::TestCase.fixture_path, table_names, {}, &block)
+  end
 end
 
 require 'sqlite3'
