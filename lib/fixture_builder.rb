@@ -17,12 +17,5 @@ module FixtureBuilder
     end
   end
 
-  begin
-    class Railtie < ::Rails::Railtie
-      rake_tasks do
-        load 'tasks/fixture_builder.rake'
-      end
-    end
-  rescue LoadError, NameError
-  end
+  require 'fixture_builder/railtie' if defined?(::Rails::Railtie)
 end
