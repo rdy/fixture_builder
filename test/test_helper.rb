@@ -121,12 +121,11 @@ def create_and_blow_away_old_db
 end
 
 def force_fixture_generation
-  FileUtils.rm(File.expand_path("../tmp/fixture_builder.yml", __dir__))
-rescue
+  FileUtils.rm_f(File.expand_path("../tmp/fixture_builder.yml", __dir__))
 end
 
 def force_fixture_generation_due_to_differing_file_hashes
   path = File.expand_path("../tmp/fixture_builder.yml", __dir__)
+  FileUtils.mkdir_p(File.dirname(path))
   File.write(path, "blah blah blah")
-rescue
 end
