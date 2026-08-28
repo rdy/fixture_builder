@@ -8,12 +8,27 @@ require "fixture_builder/fixtures_path"
 
 module FixtureBuilder
   class << self
-    def configuration
+    def deprecator
+      @deprecator ||= ActiveSupport::Deprecation.new("0.7", "FixtureBuilder")
+    end
+
+    def configuration(options = {})
+      unknown_options = options.keys - [:use_sha1_digests]
+      raise ArgumentError, "Unknown options: #{unknown_options.join(", ")}" if unknown_options.any?
+
+      if options.key?(:use_sha1_digests)
+        deprecator.warn(
+          "use_sha1_digests is deprecated and will be removed in FixtureBuilder 0.7; " \
+            "it is ignored because SHA-256 is always used",
+          caller_locations
+        )
+      end
+
       @configuration ||= FixtureBuilder::Configuration.new
     end
 
-    def configure
-      yield configuration
+    def configure(options = {})
+      yield configuration(options)
     end
   end
 
