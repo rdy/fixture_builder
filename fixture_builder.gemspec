@@ -7,22 +7,22 @@ Gem::Specification.new do |s|
   s.name = "fixture_builder"
   s.version = FixtureBuilder::VERSION
   s.platform = Gem::Platform::RUBY
-  s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.required_ruby_version = ">= 3.3"
-  s.authors = ["Ryan Dy", "David Stevenson", "Chad Woolley"]
+  s.authors = ["Ryan Dy", "David Stevenson", "Chad Woolley", "Grant Hutchins"]
   s.description = "FixtureBuilder allows testers to use their existing factories, like FactoryGirl, to generate high performance fixtures that can be shared across all your tests and development environment.  The best of all worlds!  Speed, Maintainability, Flexibility, Consistency, and Simplicity!"
-  s.email = "mail@ryandy.com"
-  s.licenses = ["MIT"]
-  s.extra_rdoc_files = [
-    "README.markdown"
-  ]
-
-  s.files = `git ls-files`.split("\n")
-  s.require_paths = ["lib"]
-
-  s.homepage = "http://github.com/rdy/fixture_builder"
-  s.rubyforge_project = "fixture_builder"
+  s.email = ["mail@ryandy.com", "gems@nertzy.com"]
+  s.homepage = "https://github.com/rdy/fixture_builder"
   s.summary = "Build Rails fixtures using object mother factories"
+  s.licenses = ["MIT"]
+  s.metadata = {
+    "bug_tracker_uri" => "#{s.homepage}/issues",
+    "changelog_uri" => "#{s.homepage}/blob/master/CHANGELOG.md",
+    "rubygems_mfa_required" => "true",
+    "source_code_uri" => s.homepage
+  }
+
+  s.files = `git ls-files -z`.split("\x0")
+  s.require_paths = ["lib"]
 
   s.add_dependency "activerecord", ">= 8.0"
   s.add_dependency "activesupport", ">= 8.0"

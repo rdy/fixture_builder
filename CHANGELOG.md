@@ -41,6 +41,9 @@
 
 ### Development
 
+- Add this changelog, use conventional README and license filenames, and expose
+  canonical project links and publishing security metadata on RubyGems
+  ([#86](https://github.com/rdy/fixture_builder/pull/86)).
 - Modernize Ruby syntax and update the test setup for current Active Record APIs
   ([#66](https://github.com/rdy/fixture_builder/pull/66); thanks
   [flyptkarsh](https://github.com/flyptkarsh)).
