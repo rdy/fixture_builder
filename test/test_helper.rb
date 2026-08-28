@@ -1,26 +1,26 @@
 # frozen_string_literal: true
 
-require 'rubygems'
-require 'bundler/setup'
-require 'test/unit'
+require "rubygems"
+require "bundler/setup"
+require "test/unit"
 
 class Rails
   def self.root
-    Pathname.new(File.join(File.dirname(__FILE__), '..'))
+    Pathname.new(File.join(File.dirname(__FILE__), ".."))
   end
 
   def self.env
-    'test'
+    "test"
   end
 end
 
 def test_path(glob)
-  File.join(Rails.root, 'test', glob)
+  Rails.root.join("test", glob)
 end
 
-require 'active_support/concern'
-require 'active_record'
-require 'active_record/fixtures'
+require "active_support/concern"
+require "active_record"
+require "active_record/fixtures"
 
 def create_fixtures(*table_names, &block)
   fixture_set = ActiveRecord::FixtureSet
@@ -41,8 +41,8 @@ def create_fixtures(*table_names, &block)
   end
 end
 
-require 'sqlite3'
-require 'fixture_builder'
+require "sqlite3"
+require "fixture_builder"
 
 class WizardData
   attr_reader :level, :title, :allies
@@ -58,7 +58,7 @@ class WizardData
   end
 
   def to_h
-    { level: level, title: title, allies: allies }
+    {level: level, title: title, allies: allies}
   end
 end
 
@@ -87,13 +87,14 @@ class WizardDataType < ActiveRecord::Type::Json
 
   def wizard_data(attributes)
     WizardData.new(
-      level: attributes['level'],
-      title: attributes['title'],
-      allies: attributes['allies']
+      level: attributes["level"],
+      title: attributes["title"],
+      allies: attributes["allies"]
     )
   end
 end
 
+# standard:disable Rails/ApplicationRecord
 class MagicalCreature < ActiveRecord::Base
   validates_presence_of :name, :species
   serialize :powers, type: Array
@@ -103,9 +104,10 @@ class MagicalCreature < ActiveRecord::Base
   attribute :virtual, ActiveRecord::Type::Integer.new
   attribute :wizard_data, WizardDataType.new
 end
+# standard:enable Rails/ApplicationRecord
 
 def create_and_blow_away_old_db
-  ActiveRecord::Base.configurations = { 'test' => { 'adapter' => 'sqlite3', 'database' => 'test.db' } }
+  ActiveRecord::Base.configurations = {"test" => {"adapter" => "sqlite3", "database" => "test.db"}}
 
   ActiveRecord::Base.establish_connection(:test)
 
@@ -119,12 +121,12 @@ def create_and_blow_away_old_db
 end
 
 def force_fixture_generation
-  FileUtils.rm(File.expand_path('../tmp/fixture_builder.yml', __dir__))
-rescue StandardError
+  FileUtils.rm(File.expand_path("../tmp/fixture_builder.yml", __dir__))
+rescue
 end
 
 def force_fixture_generation_due_to_differing_file_hashes
-  path = File.expand_path('../tmp/fixture_builder.yml', __dir__)
-  File.write(path, 'blah blah blah')
-rescue StandardError
+  path = File.expand_path("../tmp/fixture_builder.yml", __dir__)
+  File.write(path, "blah blah blah")
+rescue
 end

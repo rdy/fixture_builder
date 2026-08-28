@@ -1,22 +1,22 @@
 # frozen_string_literal: true
 
-require File.expand_path(File.join(File.dirname(__FILE__), 'test_helper'))
+require File.expand_path(File.join(File.dirname(__FILE__), "test_helper"))
 
 class Model
   def self.table_name
-    'models'
+    "models"
   end
 end
 
 class AnotherModel
   def self.table_name
-    'another_models'
+    "another_models"
   end
 end
 
 class MockFixture
   def self.[](*_args)
-    '1'
+    "1"
   end
 
   def self.model_class
@@ -32,59 +32,58 @@ class NamerTest < Test::Unit::TestCase
 
   def test_name_with
     bob = {
-      'id' => 1,
-      'email' => 'bob@example.com'
+      "id" => 1,
+      "email" => "bob@example.com"
     }
     alice = {
-      'id' => 2,
-      'email' => 'alice@example.com'
+      "id" => 2,
+      "email" => "alice@example.com"
     }
 
     @namer.name_model_with Model do |record_hash, index|
-      [record_hash['email'].split('@').first, index].join('_')
+      [record_hash["email"].split("@").first, index].join("_")
     end
 
-    assert_equal 'bob_001', @namer.record_name(bob, Model.table_name)
-    assert_equal 'alice_002', @namer.record_name(alice, Model.table_name)
+    assert_equal "bob_001", @namer.record_name(bob, Model.table_name)
+    assert_equal "alice_002", @namer.record_name(alice, Model.table_name)
   end
-
 
   def test_record_name_without_name_with_or_custom_name
     hash = {
-      'id' => 1,
-      'email' => 'bob@example.com'
+      "id" => 1,
+      "email" => "bob@example.com"
     }
-    assert_equal 'models_001', @namer.record_name(hash, Model.table_name)
+    assert_equal "models_001", @namer.record_name(hash, Model.table_name)
   end
 
   def test_record_name_with_inferred_record_name
     hash = {
-      'id' => 1,
-      'title' => 'foo',
-      'email' => 'bob@example.com'
+      "id" => 1,
+      "title" => "foo",
+      "email" => "bob@example.com"
     }
-    assert_equal 'foo', @namer.record_name(hash, Model.table_name)
+    assert_equal "foo", @namer.record_name(hash, Model.table_name)
   end
 
   def test_name_not_unique_across_tables
     hash = {
-      'id' => 1,
-      'title' => 'foo'
+      "id" => 1,
+      "title" => "foo"
     }
     hash_with_same_title = {
-      'id' => 2,
-      'title' => 'foo'
+      "id" => 2,
+      "title" => "foo"
     }
-    assert_equal 'foo', @namer.record_name(hash, Model.table_name)
-    assert_equal 'foo', @namer.record_name(hash, AnotherModel.table_name)
-    assert_equal 'foo_1', @namer.record_name(hash_with_same_title, Model.table_name)
+    assert_equal "foo", @namer.record_name(hash, Model.table_name)
+    assert_equal "foo", @namer.record_name(hash, AnotherModel.table_name)
+    assert_equal "foo_1", @namer.record_name(hash_with_same_title, Model.table_name)
   end
 
   def test_populate_custom_names_for_rails_30_and_earlier
     mock_fixtures = {
-      'foo' => MockFixture
+      "foo" => MockFixture
     }
     @namer.populate_custom_names(mock_fixtures)
-    assert_equal 'foo', @namer.record_name(MockFixture, Model.table_name)
+    assert_equal "foo", @namer.record_name(MockFixture, Model.table_name)
   end
 end

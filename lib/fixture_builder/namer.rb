@@ -17,10 +17,10 @@ module FixtureBuilder
     end
 
     def name(custom_name, *model_objects)
-      raise 'Cannot name an object blank' unless custom_name.present?
+      raise "Cannot name an object blank" if custom_name.blank?
 
       model_objects.each do |model_object|
-        raise 'Cannot name a blank object' unless model_object.present?
+        raise "Cannot name a blank object" if model_object.blank?
 
         key = [model_object.class.table_name, model_object.id]
         raise "Cannot set name for #{key.inspect} object twice" if @custom_names[key]
@@ -40,7 +40,7 @@ module FixtureBuilder
       # Rails 3.0 and earlier, create_fixtures returns an array of tuples
       created_fixtures.each do |fixture|
         name = fixture[0]
-        id = fixture[1]['id'].to_i
+        id = fixture[1]["id"].to_i
         table_name = fixture[1].model_class.table_name
         key = [table_name, id]
         @custom_names[key] = name
@@ -48,14 +48,14 @@ module FixtureBuilder
     end
 
     def record_name(record_hash, table_name)
-      key = [table_name, record_hash['id'].to_i]
+      key = [table_name, record_hash["id"].to_i]
       name = if (name_proc = @model_name_procs[table_name])
-               name_proc.call(record_hash, next_row_index(table_name))
-             elsif (custom = @custom_names[key])
-               custom
-             else
-               inferred_record_name(record_hash, table_name)
-             end
+        name_proc.call(record_hash, next_row_index(table_name))
+      elsif (custom = @custom_names[key])
+        custom
+      else
+        inferred_record_name(record_hash, table_name)
+      end
       @record_names[table_name] ||= []
       @record_names[table_name] << name
       name.to_s
@@ -65,21 +65,21 @@ module FixtureBuilder
 
     def next_row_index(table_name)
       @row_counters[table_name] += 1
-      format('%03d', @row_counters[table_name])
+      format("%03d", @row_counters[table_name])
     end
 
     def inferred_record_name(record_hash, table_name)
       record_name_fields.each do |try|
         next unless (name = record_hash[try])
 
-        inferred_name = name.underscore.gsub(/\W/, ' ').squeeze(' ').tr(' ', '_')
+        inferred_name = name.underscore.gsub(/\W/, " ").squeeze(" ").tr(" ", "_")
         count = 0
         if @record_names[table_name]
-          count = @record_names[table_name].select { |name| name.to_s.starts_with?(inferred_name) }.size
+          count = @record_names[table_name].count { |name| name.to_s.starts_with?(inferred_name) }
         end
         return count.zero? ? inferred_name : "#{inferred_name}_#{count}"
       end
-      [table_name, next_row_index(table_name)].join('_')
+      [table_name, next_row_index(table_name)].join("_")
     end
   end
 end
