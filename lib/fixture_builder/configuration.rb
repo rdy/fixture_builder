@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
 require "active_support/core_ext"
-require "active_support/core_ext/string"
 require "digest"
 require "fileutils"
 require "hashdiff"
 require "tempfile"
+require "fixture_builder/generation_lock"
 
 module FixtureBuilder
   Differ = if Object.const_defined?(:Hashdiff)
@@ -44,11 +44,22 @@ module FixtureBuilder
 
     def factory(&block)
       self.files_to_check += @legacy_fixtures.to_a
-      return unless rebuild_fixtures?
+      return unless rebuild_fixtures_preflight?
 
-      invalidate_config
-      @builder = Builder.new(self, @namer, block).generate!
-      write_config
+      generation_lock = GenerationLock.new(
+        manifest_lock_path: lock_path,
+        fixture_directory: fixture_directory
+      )
+      generation_lock.synchronize do
+        @file_hashes = file_hashes
+        locked_file_hashes = @file_hashes
+        next unless rebuild_fixtures?
+
+        invalidate_config
+        @builder = Builder.new(self, @namer, block).generate!
+        @file_hashes = locked_file_hashes
+        write_config
+      end
     end
 
     def select_sql
@@ -105,6 +116,10 @@ module FixtureBuilder
       @fixture_builder_file ||= ::Rails.root.join("tmp/fixture_builder.yml")
     end
 
+    def lock_path
+      "#{File.expand_path(fixture_builder_file.to_s)}.lock"
+    end
+
     def name_model_with(model_class, &block)
       @namer.name_model_with(model_class, &block)
     end
@@ -144,6 +159,12 @@ module FixtureBuilder
       YAML.safe_load_file(fixture_builder_file)
     end
 
+    def rebuild_fixtures_preflight?
+      rebuild_fixtures?(announce: false)
+    rescue Errno::ENOENT
+      true
+    end
+
     def current_manifest?(manifest)
       expected_keys = %w[fixtures sources version]
       manifest.is_a?(Hash) && manifest.keys.length == expected_keys.length &&
@@ -159,7 +180,7 @@ module FixtureBuilder
     end
 
     def invalidate_config
-      FileUtils.rm_f(fixture_builder_file)
+      FileUtils.rm(fixture_builder_file) if File.exist?(fixture_builder_file)
     end
 
     def write_config
@@ -182,23 +203,29 @@ module FixtureBuilder
     end
 
     # standard:disable Rails/Output
-    def rebuild_fixtures?
+    def rebuild_fixtures?(announce: true)
       unless ::File.exist?(fixture_builder_file)
-        puts "=> rebuilding fixtures because fixture_builder config file #{fixture_builder_file} does not exist"
+        if announce
+          puts "=> rebuilding fixtures because fixture_builder config file #{fixture_builder_file} does not exist"
+        end
         return true
       end
 
       manifest = read_config
       unless current_manifest?(manifest)
-        puts "=> rebuilding fixtures because fixture_builder config file #{fixture_builder_file} has an invalid current manifest shape"
+        if announce
+          puts "=> rebuilding fixtures because fixture_builder config file #{fixture_builder_file} has an invalid current manifest shape"
+        end
         return true
       end
 
       if @file_hashes != manifest["sources"]
-        print_hash_diff("source files have changed", @file_hashes, manifest["sources"])
+        print_hash_diff("source files have changed", @file_hashes, manifest["sources"]) if announce
         return true
       elsif fixture_hashes != manifest["fixtures"]
-        print_hash_diff("generated fixture output has changed", fixture_hashes, manifest["fixtures"])
+        if announce
+          print_hash_diff("generated fixture output has changed", fixture_hashes, manifest["fixtures"])
+        end
         return true
       end
       false

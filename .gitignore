@@ -5,6 +5,8 @@ pkg/
 *.db-wal
 *.db-shm
 tmp/fixture_builder.yml
+tmp/fixture_builder.yml.lock
+.fixture_builder.lock
 test/fixtures/magical_creatures.yml
 Gemfile.lock
 *.gem

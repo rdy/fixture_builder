@@ -162,6 +162,12 @@ YAML differ from the manifest. This detects stale ignored artifacts left by CI c
 restores, local branch changes, or pulls. Invalid or older manifest formats rebuild
 automatically; malformed YAML raises an error instead of being silently replaced.
 
+FixtureBuilder supports parallel testing frameworks by coordinating fixture generation
+across threads and processes, so only one worker rebuilds a stale snapshot while the
+others wait and reuse the completed result. A failed build leaves no valid manifest,
+so a waiter or later run retries. Only the manifest is replaced atomically after
+successful fixture generation; the fixture set itself is not published atomically.
+
 Sequence Collisions
 ===================
 
