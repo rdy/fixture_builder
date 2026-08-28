@@ -5,6 +5,7 @@ require "active_support/core_ext/string"
 require "digest"
 require "fileutils"
 require "hashdiff"
+require "tempfile"
 
 module FixtureBuilder
   Differ = if Object.const_defined?(:Hashdiff)
@@ -17,6 +18,8 @@ module FixtureBuilder
   class Configuration
     include Delegations::Namer
 
+    MANIFEST_VERSION = 1
+
     ACCESSIBLE_ATTRIBUTES = %i[select_sql delete_sql skip_tables files_to_check record_name_fields
       fixture_builder_file fixture_directory after_build legacy_fixtures model_name_procs
       write_empty_files].freeze
@@ -25,9 +28,8 @@ module FixtureBuilder
     SCHEMA_FILES = ["db/schema.rb", "db/development_structure.sql", "db/test_structure.sql",
       "db/production_structure.sql"].freeze
 
-    def initialize(opts = {})
+    def initialize
       @namer = Namer.new(self)
-      @use_sha1_digests = opts[:use_sha1_digests] || false
       @file_hashes = file_hashes
       @write_empty_files = true
     end
@@ -44,6 +46,7 @@ module FixtureBuilder
       self.files_to_check += @legacy_fixtures.to_a
       return unless rebuild_fixtures?
 
+      invalidate_config
       @builder = Builder.new(self, @namer, block).generate!
       write_config
     end
@@ -121,42 +124,92 @@ module FixtureBuilder
     private
 
     def file_hashes
-      algorithm = @use_sha1_digests ? Digest::SHA1 : Digest::MD5
       files_to_check.each_with_object({}) do |filename, hash|
-        hash[filename] = algorithm.hexdigest(File.read(filename))
+        hash[filename.to_s] = file_digest(filename)
       end
     end
 
-    def read_config
-      return {} unless File.exist?(fixture_builder_file)
+    def fixture_hashes
+      pattern = File.join(fixture_directory.to_s, "*.yml")
+      Dir.glob(pattern).sort.each_with_object({}) do |filename, hash|
+        hash[File.basename(filename)] = file_digest(filename)
+      end
+    end
 
-      YAML.load_file(fixture_builder_file)
+    def file_digest(filename)
+      Digest::SHA256.file(filename.to_s).hexdigest
+    end
+
+    def read_config
+      YAML.safe_load_file(fixture_builder_file)
+    end
+
+    def current_manifest?(manifest)
+      expected_keys = %w[fixtures sources version]
+      manifest.is_a?(Hash) && manifest.keys.length == expected_keys.length &&
+        expected_keys.all? { |key| manifest.key?(key) } &&
+        manifest["version"] == MANIFEST_VERSION &&
+        digest_hash?(manifest["sources"]) && digest_hash?(manifest["fixtures"])
+    end
+
+    def digest_hash?(hash)
+      hash.is_a?(Hash) && hash.all? do |key, digest|
+        key.is_a?(String) && digest.is_a?(String)
+      end
+    end
+
+    def invalidate_config
+      FileUtils.rm_f(fixture_builder_file)
     end
 
     def write_config
-      FileUtils.mkdir_p(File.dirname(fixture_builder_file))
-      File.write(fixture_builder_file, YAML.dump(@file_hashes))
+      manifest = {
+        "version" => MANIFEST_VERSION,
+        "sources" => @file_hashes,
+        "fixtures" => fixture_hashes
+      }
+      destination = fixture_builder_file.to_s
+      directory = File.dirname(destination)
+      FileUtils.mkdir_p(directory)
+      Tempfile.create(["fixture_builder", ".yml"], directory) do |file|
+        temporary_path = file.path
+        file.write(YAML.dump(manifest))
+        file.flush
+        file.fsync
+        file.close
+        File.rename(temporary_path, destination)
+      end
     end
 
     # standard:disable Rails/Output
     def rebuild_fixtures?
-      file_hashes_from_disk = @file_hashes
-      file_hashes_from_config = read_config
-      if Dir.glob("#{fixture_directory}/*.yml").blank?
-        puts "=> rebuilding fixtures because fixture directory #{fixture_directory} has no *.yml files"
-        return true
-      elsif !::File.exist?(fixture_builder_file)
+      unless ::File.exist?(fixture_builder_file)
         puts "=> rebuilding fixtures because fixture_builder config file #{fixture_builder_file} does not exist"
         return true
-      elsif file_hashes_from_disk != file_hashes_from_config
-        puts "=> rebuilding fixtures because one or more of the following files have changed (see http://www.rubydoc.info/gems/hashdiff for diff syntax):"
-        Differ.diff(file_hashes_from_disk, file_hashes_from_config).map do |diff|
-          print "   "
-          p diff
-        end
+      end
+
+      manifest = read_config
+      unless current_manifest?(manifest)
+        puts "=> rebuilding fixtures because fixture_builder config file #{fixture_builder_file} has an invalid current manifest shape"
+        return true
+      end
+
+      if @file_hashes != manifest["sources"]
+        print_hash_diff("source files have changed", @file_hashes, manifest["sources"])
+        return true
+      elsif fixture_hashes != manifest["fixtures"]
+        print_hash_diff("generated fixture output has changed", fixture_hashes, manifest["fixtures"])
         return true
       end
       false
+    end
+
+    def print_hash_diff(reason, hashes_from_disk, hashes_from_config)
+      puts "=> rebuilding fixtures because #{reason} (see http://www.rubydoc.info/gems/hashdiff for diff syntax):"
+      Differ.diff(hashes_from_disk, hashes_from_config).each do |diff|
+        print "   "
+        p diff
+      end
     end
     # standard:enable Rails/Output
   end
