@@ -14,16 +14,14 @@ class FixtureBuilderTest < Test::Unit::TestCase
   end
 
   def test_name_with
-    hash = {
-      "id" => 1,
-      "email" => "bob@example.com"
-    }
+    hash = {"email" => "bob@example.com"}
     FixtureBuilder.configure do |config|
       config.name_model_with Model do |record_hash, index|
         [record_hash["email"].split("@").first, index].join("_")
       end
     end
-    assert_equal "bob_001", FixtureBuilder.configuration.send(:record_name, hash, Model.table_name)
+    assert_equal "bob_001",
+      FixtureBuilder.configuration.send(:record_name, hash, Model.table_name)
   end
 
   def test_ivar_naming
@@ -155,9 +153,28 @@ class FixtureBuilderTest < Test::Unit::TestCase
     end
   end
 
-  def test_absolute_rails_fixtures_path
-    assert_equal File.expand_path("../test/fixtures", __dir__),
+  def test_absolute_rails_fixtures_path_uses_database_tasks_fixtures_path
+    original_fixtures_path = ActiveRecord::Tasks::DatabaseTasks.fixtures_path
+    authoritative_path = test_path("authoritative_fixtures")
+    ActiveRecord::Tasks::DatabaseTasks.fixtures_path = authoritative_path
+
+    assert_same authoritative_path,
       FixtureBuilder::FixturesPath.absolute_rails_fixtures_path
+  ensure
+    ActiveRecord::Tasks::DatabaseTasks.fixtures_path = original_fixtures_path
+  end
+
+  def test_absolute_rails_fixtures_path_propagates_database_tasks_errors
+    database_tasks = ActiveRecord::Tasks::DatabaseTasks
+    original_method = database_tasks.method(:fixtures_path)
+    error_class = Class.new(StandardError)
+    database_tasks.define_singleton_method(:fixtures_path) { raise error_class }
+
+    assert_raise(error_class) do
+      FixtureBuilder::FixturesPath.absolute_rails_fixtures_path
+    end
+  ensure
+    database_tasks.define_singleton_method(:fixtures_path, original_method)
   end
 
   def test_fixtures_dir

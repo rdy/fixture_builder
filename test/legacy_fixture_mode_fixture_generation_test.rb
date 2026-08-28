@@ -23,16 +23,16 @@ class LegacyFixtureModeFixtureGenerationTest < Test::Unit::TestCase
   end
 
   def test_legacy_fixtures_created
-    alice = MagicalCreature.find_by_name("alice")
+    alice = MagicalCreature.find_by!(name: "alice")
     assert_equal "alice", alice.name
     assert_equal "mermaid", alice.species
   end
 
   def test_invalid_legacy_fixtures_created
-    bigfoot = MagicalCreature.find(5)
+    bigfoot = MagicalCreature.unscoped.find_by!(name: "bigfoot")
     assert_equal "bigfoot", bigfoot.name
 
-    assert_equal 5, @@magical_creatures["bigfoot"]["id"]
+    assert_equal bigfoot.id, @@magical_creatures["bigfoot"]["id"]
     assert_equal "bigfoot", @@magical_creatures["bigfoot"]["name"]
     assert_nil @@magical_creatures["bigfoot"]["species"]
   end
