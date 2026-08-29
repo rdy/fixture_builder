@@ -2,7 +2,7 @@
 
 require File.expand_path(File.join(File.dirname(__FILE__), "test_helper"))
 
-class Model
+class FixtureBuilderTestModel
   def self.table_name
     "models"
   end
@@ -16,12 +16,12 @@ class FixtureBuilderTest < Test::Unit::TestCase
   def test_name_with
     hash = {"email" => "bob@example.com"}
     FixtureBuilder.configure do |config|
-      config.name_model_with Model do |record_hash, index|
+      config.name_model_with FixtureBuilderTestModel do |record_hash, index|
         [record_hash["email"].split("@").first, index].join("_")
       end
     end
     assert_equal "bob_001",
-      FixtureBuilder.configuration.send(:record_name, hash, Model.table_name)
+      FixtureBuilder.configuration.send(:record_name, hash, FixtureBuilderTestModel.table_name)
   end
 
   def test_ivar_naming
@@ -233,6 +233,7 @@ class FixtureBuilderTest < Test::Unit::TestCase
       FixtureBuilder::FixturesPath.absolute_rails_fixtures_path
     end
   ensure
+    database_tasks.singleton_class.remove_method(:fixtures_path)
     database_tasks.define_singleton_method(:fixtures_path, original_method)
   end
 
