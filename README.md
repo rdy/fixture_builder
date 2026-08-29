@@ -6,8 +6,10 @@ FixtureBuilder
 > [!NOTE]
 > As of August 2026, FixtureBuilder is maintained by
 > [Grant Hutchins](https://github.com/nertzy). Grant is preparing a 0.6 release
-> with some long-needed fixes, coming shortly. Contributions are encouraged and
-> warmly welcomed.
+> with some long-needed fixes, coming shortly. Follow the
+> [maintainer backlog triage plan](doc/plans/2026-08-29-maintainer-backlog-triage.md)
+> for current priorities and progress. Contributions are encouraged and warmly
+> welcomed.
 
 Based on the code from fixture_scenarios, by Chris Wanstrath. Allows you to build file fixtures from
 ordinary Active Record model code, including object mothers such as Factory Bot, to generate

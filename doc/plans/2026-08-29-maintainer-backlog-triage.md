@@ -1,8 +1,8 @@
 ---
 plan: Maintainer backlog triage
-status: accepted
+status: active
 created: "2026-08-29"
-last_updated: "2026-08-29"
+last_updated: "2026-08-31"
 owner: Grant Hutchins
 scope: Open issues and pull requests in rdy/fixture_builder
 ---
@@ -17,8 +17,9 @@ and preserves useful requirements from contributions that no longer fit the
 current Ruby 3.3 and Rails 8 codebase.
 
 The review covered all eight open issues and all six open pull requests against
-`master` at `adf7a0f`. No issue or pull request comments were posted during the
-review.
+`master` at `adf7a0f`. Phase 1 rechecked the proposed closures against current
+`master`, closed the obsolete work with disposition notes, and created #99 and
+#100 to preserve two reproduced requirements.
 
 ## Goals
 
@@ -26,6 +27,8 @@ review.
 - Replace stale, entangled contributions with focused changes from current
   `master`.
 - Release 0.6 without making the entire historical backlog a release blocker.
+- Exclude database-generated columns before releasing 0.6 so ordinary fixture
+  generation produces loadable snapshots.
 - Preserve the documented deprecation period before removing public APIs.
 - Keep each implementation small enough to test and review independently.
 
@@ -84,27 +87,52 @@ paths are supported, fixture cleanup and manifest hashing must traverse them
 recursively. Cover a namespaced model, JSON data, and nested fixture output in
 one end-to-end regression.
 
+#### [#99: Restore the Active Record connection after building fixtures](https://github.com/rdy/fixture_builder/issues/99)
+
+Restore the connection that was active before `spec:fixture_builder:build`
+after fixture generation succeeds or raises. The task must keep the test
+connection active while it builds fixtures without leaving later tasks attached
+to the test database.
+
+#### [#100: Exclude generated columns from fixture snapshots](https://github.com/rdy/fixture_builder/issues/100)
+
+Fix this before releasing 0.6. Filter database-generated columns at the generic
+gem boundary for both model-backed and classless fixture extraction. Use Rails'
+compatible schema metadata:
+`connection.supports_virtual_columns? && column.virtual?`. Do not restore the old
+`Builder#serialize_attribute` hook; upstream `master` diverged before that hook,
+and consumer overrides of it are inert.
+
+A real upgrade reproduction confirmed that manifest-version invalidation already
+rejects an old manifest and rebuilds fixtures. The remaining failure is that
+Rails 8.1 rejects generated columns during fixture insertion after
+`attributes_before_type_cast` writes them into the rebuilt snapshot. Advance the
+manifest format with this behavior change so upgrading causes one rebuild. Do
+not add a live-schema fingerprint; the reproduction disproved that design.
+
 ### Issues to close
 
 #### [#58: Rails 5.0 `#tables` deprecation warning](https://github.com/rdy/fixture_builder/issues/58)
 
-Close as obsolete. Rails 8 gives `connection.tables` the required base-table
-behavior, and Rails 5 is outside the supported range.
+Closed as obsolete. A current Rails 8 reproduction confirmed that
+`connection.tables` excludes views, FixtureBuilder does not query or dump them,
+and no deprecation warning occurs. A view-including control failed as expected,
+and Rails 5 is outside the supported range.
 
 #### [#46: Automatically enhance `db:fixtures:load`](https://github.com/rdy/fixture_builder/issues/46)
 
-Close as not planned. Automatically inserting the build task risks leaving
-Active Record on the test connection when Rails loads fixtures. If demand
-returns, design an explicit FixtureBuilder-owned load task that saves and
-restores the original connection rather than changing a standard Rails task
-invisibly.
+Closed the automatic-enhancement request as not planned. Reproduction showed
+that the current build task leaves `Rails.env` unchanged but leaks Active
+Record's test connection. Preserve that current bug separately in #99 rather
+than changing a standard Rails task invisibly.
 
 #### [#45: Allow access to derived fixture names](https://github.com/rdy/fixture_builder/issues/45)
 
-Close as not planned. Current name derivation is stateful and collision-aware;
-observing it can change later names. A future request would need a deliberately
-designed reservation or assignment API with explicit collision semantics, not
-an accessor over the current implementation.
+Closed as not planned. Reproduction confirmed that current name derivation is
+stateful and collision-aware: observing a derived name during the factory block
+changed the later assigned name. Existing explicit naming and retained model
+references cover the reported construction workflow without exposing this
+mutable internal state.
 
 ### Pull requests to close
 
@@ -117,11 +145,11 @@ ordering.
 
 #### [#67: Ignore virtual columns](https://github.com/rdy/fixture_builder/pull/67)
 
-Close and replace with a focused implementation. The generated-column problem
-is valid, but the pull request is untested and filters only the model-backed
-extraction path. A replacement must derive writable columns from schema metadata
-and filter both model-backed and raw-query rows. Cover a generated SQLite column
-and a table without an inferable model.
+Closed and replaced by #100. The generated-column problem was reproduced, but
+the pull request filters only the model-backed extraction path and predates the
+current extraction implementation. The replacement must derive writable columns
+from schema metadata and filter both model-backed and raw-query rows. Cover a
+generated SQLite column and a table without an inferable model.
 
 #### [#64: Add table-specific configuration](https://github.com/rdy/fixture_builder/pull/64)
 
@@ -156,14 +184,20 @@ reviving the proposed public hook surface.
 
 ### Phase 1: Backlog cleanup
 
-- [ ] Close obsolete issues #58, #46, and #45 with concise disposition notes.
-- [ ] Create a focused generated-column issue or an immediately active
-      replacement pull request before closing #67.
-- [ ] Close stale pull requests #68, #67, #64, #62, #59, and #36.
-- [ ] When closing #67, #64, and #59, state that the valid requirement is being
+- [x] Reproduce current behavior before closing issues #58, #46, and #45 and
+      generated-column pull request #67.
+- [x] Close obsolete issues #58, #46, and #45 with concise disposition notes.
+- [x] Create #99 to preserve the Active Record connection-restoration bug found
+      while reassessing #46.
+- [x] Create focused generated-column issue #100 before closing #67.
+- [x] Close stale pull requests #68, #67, #64, #62, #59, and #36.
+- [x] When closing #67, #64, and #59, state that the valid requirement is being
       retained even though the old branch will not be merged.
-- [ ] Record the replacement issue or pull request next to the #67 decision in
-      this plan.
+- [x] Record replacement issues #99 and #100 next to their decisions in this
+      plan.
+- [x] Incorporate upgrade validation that confirmed manifest invalidation works,
+      generated columns still break rebuilt fixtures, and live-schema
+      fingerprinting is unnecessary.
 
 ### Phase 2: Prepare and release 0.6
 
@@ -188,8 +222,47 @@ reviving the proposed public hook surface.
   0.6 when the fix stays isolated; otherwise make it the first 0.6-compatible
   patch.
 
+#### Restore the previous Active Record connection for #99
+
+- **Implementation:** Keep the test connection active while the fixture builder
+  loads, then restore the caller's previous connection after success or failure.
+- **Tests:** Exercise the Rake task with distinct source and test databases and
+  cover both successful generation and an exception from the factory.
+- **Completion gate:** The regression demonstrates the leaked connection before
+  the fix; then the focused tests and `bin/rake` pass without modifying Rails'
+  standard `db:fixtures:load` task.
+
+#### Exclude generated columns for #100
+
+- **Implementation:** Derive writable columns from connection schema metadata in
+  `lib/fixture_builder/builder.rb`. Apply the same filter to model-backed and raw
+  query extraction, guarded by
+  `connection.supports_virtual_columns? && column.virtual?`. Advance the manifest format so upgrading rebuilds affected
+  fixtures once. Do not add a serialization hook or live-schema fingerprint.
+- **Tests:** Add anonymous SQLite generated-column coverage that exercises
+  ordinary fixture generation and loads the resulting snapshot successfully.
+  Cover both model-backed and classless extraction, prove the generated column
+  is absent, and prove writable attributes remain.
+- **Completion gate:** The regression fails on current `master`; then ordinary
+  generation produces loadable fixtures, an old manifest triggers one rebuild,
+  and the focused tests plus `bin/rake` pass.
+
+#### Clean up dropped-table fixtures conservatively
+
+- **Implementation:** Consider removal only for a fixture path recorded in the
+  prior manifest. Remove it only when the current file digest still matches the
+  prior recorded digest. Preserve modified fixtures and every unrecorded YAML
+  file.
+- **Tests:** Cover an unchanged recorded fixture for a dropped table, a modified
+  recorded fixture, and an unrecorded fixture. The first is removed; the latter
+  two survive the rebuild.
+- **Completion gate:** The regression proves stale generated output is removed
+  without deleting user-authored or modified content, then the focused tests and
+  `bin/rake` pass.
+
 #### Validate and release
 
+- [ ] Land #100 and the conservative dropped-table cleanup before cutting 0.6.
 - [ ] Run `bin/rake` with the default dependency set.
 - [ ] Run the stable combinations documented by `.github/workflows/ci.yml`,
       using `RAILS_VERSION` with `bundle update --all` and `bin/rake` as
@@ -209,16 +282,6 @@ reviving the proposed public hook surface.
   custom-primary-key and keyless-table cases. Prove two generations are stable.
 - **Completion gate:** The regression fails before the implementation, then the
   focused test file and `bin/rake` pass without weakening deterministic output.
-
-#### Replace generated-column PR #67
-
-- **Implementation:** Derive writable columns from connection schema metadata in
-  `lib/fixture_builder/builder.rb` and apply the filter to model-backed and raw
-  query extraction.
-- **Tests:** Add a generated SQLite column and a classless-table fallback to
-  `test/fixture_builder_test.rb`.
-- **Completion gate:** The replacement issue exists before #67 closes; the
-  regression fails first; then the focused test file and `bin/rake` pass.
 
 #### Add explicit table mapping for #49
 
@@ -252,14 +315,15 @@ primitive makes a small dependency stack clearer.
 
 ### Backlog triage complete
 
-The initial triage is complete when:
+The initial triage is complete:
 
-- Issues #58, #46, and #45 are closed with their recorded dispositions.
-- Pull requests #68, #67, #64, #62, #59, and #36 are closed.
-- No stale pull request remains open solely to remember a valid requirement.
-- The generated-column concern from #67 has a current tracked issue or an active
-  replacement pull request before #67 closes.
-- Issues #94, #72, #70, #69, and #49 retain the scope recorded here.
+- [x] Issues #58, #46, and #45 are closed with their recorded dispositions.
+- [x] Pull requests #68, #67, #64, #62, #59, and #36 are closed.
+- [x] No stale pull request remains open solely to remember a valid requirement.
+- [x] Generated-column issue #100 preserves the concern from #67.
+- [x] Connection-restoration issue #99 preserves the current bug found while
+      reassessing #46.
+- [x] Issues #94, #72, #70, #69, and #49 retain the scope recorded here.
 
 Completing triage moves this plan to `active`; it does not complete the
 implementation roadmap or authorize deletion of this document.
@@ -268,10 +332,13 @@ implementation roadmap or authorize deletion of this document.
 
 The plan is complete only when:
 
-- Issues #69 and #70 have landed with their focused regressions.
+- Issues #69, #70, #99, and #100 have landed with their focused regressions.
+- Generated columns are excluded before 0.6 from both fixture extraction paths,
+  the manifest format causes one upgrade rebuild, and the resulting fixtures
+  load successfully.
+- Dropped-table cleanup removes only unchanged files recorded by the prior
+  manifest and preserves modified or unrecorded YAML.
 - Fixture generation supports custom and absent primary keys deterministically.
-- Generated columns are filtered from both fixture extraction paths with tested
-  coverage.
 - Namespaced and otherwise non-inferable models have an explicit, validated
   mapping path.
 - 0.6 has been released before any 0.7 API removal.
@@ -289,7 +356,12 @@ The plan is complete only when:
   adapter-specific SQL. Add adapter-specific coverage only for a demonstrated
   adapter-specific behavior.
 - **Silent data loss:** Filtering columns or selecting rows must be explicit and
-  tested. Fixture snapshots must not silently omit writable data.
+  tested. Fixture snapshots must not silently omit writable data. Remove a stale
+  fixture only when the prior manifest recorded it and its current digest still
+  matches; preserve modified and unrecorded YAML.
+- **Manifest invalidation:** Advance the manifest format for the 0.6 generated-
+  column behavior change so existing snapshots rebuild once. Do not add a live-
+  schema fingerprint.
 - **Public API timing:** A deprecation in 0.6 remains functional throughout 0.6
   and may only be removed in 0.7.
 - **Nested fixture paths:** Directory creation, cleanup, and manifest validation
