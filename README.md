@@ -3,6 +3,12 @@ FixtureBuilder
 
 [![Build Status](https://github.com/rdy/fixture_builder/actions/workflows/ci.yml/badge.svg)](https://github.com/rdy/fixture_builder/actions/workflows/ci.yml)
 
+> [!NOTE]
+> As of August 2026, FixtureBuilder is maintained by
+> [Grant Hutchins](https://github.com/nertzy). Grant is preparing a 0.6 release
+> with some long-needed fixes, coming shortly. Contributions are encouraged and
+> warmly welcomed.
+
 Based on the code from fixture_scenarios, by Chris Wanstrath. Allows you to build file fixtures from
 ordinary Active Record model code, including object mothers such as Factory Bot, to generate
 high-performance fixtures that can be shared across your tests and development environment.
@@ -312,4 +318,7 @@ class CreateFixtures
 
 Copyright (c) 2009 Ryan Dy & David Stevenson, released under the MIT license
 
-Currently maintained by [Chad Woolley](mailto:thewoolleyman@gmail.com)
+Currently maintained by [Grant Hutchins](https://github.com/nertzy).
+
+Previously maintained by [Chad Woolley](mailto:thewoolleyman@gmail.com). Thank
+you, Chad, for your stewardship of FixtureBuilder over the years.
