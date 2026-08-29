@@ -22,8 +22,9 @@ module FixtureBuilder
     SCHEMA_FILES = ["db/schema.rb", "db/development_structure.sql", "db/test_structure.sql",
       "db/production_structure.sql"].freeze
 
-    def initialize
+    def initialize(options = {})
       @namer = Namer.new(self)
+      self.use_sha1_digests = options[:use_sha1_digests] if options.key?(:use_sha1_digests)
       @file_hashes = file_hashes
       @write_empty_files = true
     end
@@ -61,11 +62,12 @@ module FixtureBuilder
     end
 
     def select_sql=(sql)
-      if /%s/.match?(sql)
-        ActiveSupport::Deprecation.warn("Passing '%s' into select_sql is deprecated. Please use '%<table>s' instead.",
-          caller)
-        sql = sql.sub("%s", "%<table>s")
+      if sql.include?("%s")
+        raise ArgumentError,
+          "Positional %s table placeholders are no longer supported; use %<table>s or %{table}. " \
+            "See https://docs.ruby-lang.org/en/3.3/format_specifications_rdoc.html#label-Reference+by+Name."
       end
+
       @select_sql = sql
     end
 
@@ -74,11 +76,12 @@ module FixtureBuilder
     end
 
     def delete_sql=(sql)
-      if /%s/.match?(sql)
-        ActiveSupport::Deprecation.warn("Passing '%s' into delete_sql is deprecated. Please use '%<table>s' instead.",
-          caller)
-        sql = sql.sub("%s", "%<table>s")
+      if sql.include?("%s")
+        raise ArgumentError,
+          "Positional %s table placeholders are no longer supported; use %<table>s or %{table}. " \
+            "See https://docs.ruby-lang.org/en/3.3/format_specifications_rdoc.html#label-Reference+by+Name."
       end
+
       @delete_sql = sql
     end
 
@@ -104,6 +107,17 @@ module FixtureBuilder
 
     def record_name_fields
       @record_name_fields ||= %w[unique_name display_name name title username login]
+    end
+
+    def use_sha1_digests = @use_sha1_digests || false
+
+    def use_sha1_digests=(value)
+      FixtureBuilder.deprecator.warn(
+        "use_sha1_digests is deprecated and will be removed in FixtureBuilder 0.7; " \
+          "it is ignored because SHA-256 is always used",
+        caller_locations
+      )
+      @use_sha1_digests = value
     end
 
     def fixture_builder_file

@@ -151,8 +151,23 @@ By default these are set as:
 * fixture_builder_file: Rails.root.join("tmp/fixture_builder.yml")
 * record_name_fields: %w{ unique_name display_name name title username login }
 * skip_tables: %w{ schema_migrations ar_internal_metadata }
-* select_sql: SELECT * FROM %{table}
-* delete_sql: DELETE FROM %{table}
+* select_sql: SELECT * FROM %<table>s
+* delete_sql: DELETE FROM %<table>s
+
+FixtureBuilder supports Ruby's two
+[reference by name](https://docs.ruby-lang.org/en/3.3/format_specifications_rdoc.html#label-Reference+by+Name)
+forms for the table placeholder. In `%<table>s`, `table` is the named key and
+`s` formats its value as a string. `%{table}` is the alternate named string
+replacement and has no trailing `s`. FixtureBuilder passes the quoted table
+name as the value in either form:
+
+```ruby
+format("SELECT * FROM %<table>s", table: '"users"') # => "SELECT * FROM \"users\""
+format("DELETE FROM %{table}", table: '"users"')    # => "DELETE FROM \"users\""
+```
+
+Positional `%s` placeholders were deprecated in FixtureBuilder 0.5.0 and are
+rejected in 0.6.
 
 FixtureBuilder rebuilds fixtures when configured source files or generated fixture
 YAML differ from the manifest. This detects stale ignored artifacts left by CI cache

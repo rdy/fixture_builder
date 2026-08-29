@@ -115,6 +115,47 @@ class FixtureBuilderTest < Test::Unit::TestCase
     assert_equal "FixtureBuilder", FixtureBuilder.deprecator.gem_name
   end
 
+  def test_sql_setters_reject_positional_table_format
+    {select_sql: "SELECT * FROM %s", delete_sql: "DELETE FROM %s"}.each do |attribute, sql|
+      configuration = FixtureBuilder::Configuration.new
+
+      error = assert_raise(ArgumentError) do
+        configuration.public_send("#{attribute}=", sql)
+      end
+
+      assert_equal(
+        "Positional %s table placeholders are no longer supported; use %<table>s or %{table}. " \
+          "See https://docs.ruby-lang.org/en/3.3/format_specifications_rdoc.html#label-Reference+by+Name.",
+        error.message
+      )
+    end
+  end
+
+  def test_sql_setters_retain_named_table_formats
+    ["%<table>s", "%{table}"].each do |table_format|
+      {select_sql: "SELECT * FROM #{table_format}", delete_sql: "DELETE FROM #{table_format}"}.each do |attribute, sql|
+        configuration = FixtureBuilder::Configuration.new
+
+        configuration.public_send("#{attribute}=", sql)
+
+        assert_equal sql, configuration.public_send(attribute)
+      end
+    end
+  end
+
+  def test_configuration_constructor_accepts_deprecated_use_sha1_digests_option
+    _output, warning = capture_output do
+      configuration = FixtureBuilder::Configuration.new(use_sha1_digests: true)
+
+      assert_true configuration.use_sha1_digests
+    end
+
+    assert_match(
+      /use_sha1_digests is deprecated and will be removed in FixtureBuilder 0.7; it is ignored because SHA-256 is always used/,
+      warning
+    )
+  end
+
   def test_configuration_accepts_deprecated_use_sha1_digests_option_when_memoized
     configuration = FixtureBuilder.configuration
 
@@ -138,6 +179,7 @@ class FixtureBuilderTest < Test::Unit::TestCase
     _output, warning = capture_output do
       FixtureBuilder.configure(use_sha1_digests: true) do |config|
         assert_instance_of FixtureBuilder::Configuration, config
+        assert_false config.use_sha1_digests
       end
     end
 
@@ -374,12 +416,22 @@ class FixtureBuilderTest < Test::Unit::TestCase
     assert_equal 1, YAML.safe_load_file(manifest_path)["version"]
   end
 
-  def test_sha256_manifest_digests
+  def test_sha256_manifest_digests_when_deprecated_use_sha1_digests_is_enabled
     create_and_blow_away_old_db
     force_fixture_generation_due_to_differing_file_hashes
 
     source_path = Pathname.new(test_path("fixture_builder_test.rb"))
     FixtureBuilder.configure do |fbuilder|
+      _output, warning = capture_output do
+        fbuilder.use_sha1_digests = true
+      end
+
+      assert_true fbuilder.use_sha1_digests
+      assert_match(
+        /use_sha1_digests is deprecated and will be removed in FixtureBuilder 0.7; it is ignored because SHA-256 is always used/,
+        warning
+      )
+
       fbuilder.files_to_check = [source_path]
       fbuilder.factory do
         @enty = MagicalCreature.create(name: "Enty", species: "ent",

@@ -11,10 +11,6 @@
   ([#74](https://github.com/rdy/fixture_builder/pull/74)).
 - Keep fixture regeneration compatible with Rails 8.2's parsed fixture cache
   ([#77](https://github.com/rdy/fixture_builder/pull/77)).
-- Add optional SHA-1 hashing for fixture manifests
-  ([#56](https://github.com/rdy/fixture_builder/pull/56),
-  [#57](https://github.com/rdy/fixture_builder/pull/57); thanks
-  [alexzherdev](https://github.com/alexzherdev)).
 - Validate cached fixture snapshots with a versioned SHA-256 manifest covering
   both configured source files and generated fixtures, rebuilding stale or
   invalid snapshots and always using SHA-256 instead of MD5 or optional SHA-1
@@ -26,15 +22,23 @@
   current `ActiveRecord::FixtureSet` and database-task fixture path APIs.
 - Require Hashdiff 1.0 or newer and remove compatibility with its pre-1.0
   `HashDiff` constant.
+- Remove positional `%s` table placeholders from `select_sql` and `delete_sql`
+  after their deprecation in FixtureBuilder 0.5.0; use `%<table>s` instead.
 
 ### Deprecated
 
 - Deprecate passing hashes or arrays of fixture tuples to
-  `Namer#populate_custom_names` or its `Builder` delegation; support will be
-  removed in FixtureBuilder 0.7.
-- Deprecate `use_sha1_digests`, which is ignored because SHA-256 is always used.
-  It will be removed in FixtureBuilder 0.7
-  ([#87](https://github.com/rdy/fixture_builder/pull/87)).
+  `Namer#populate_custom_names` or its `Builder` and `Configuration`
+  delegations; support will be removed in FixtureBuilder 0.7.
+- Deprecate the `use_sha1_digests` Configuration reader/writer introduced in
+  FixtureBuilder 0.5.3.rc1 and the Configuration constructor,
+  `FixtureBuilder.configuration`, and `FixtureBuilder.configure` options
+  introduced in 0.5.3.rc2. They are ignored because SHA-256 is always used and
+  will be removed in FixtureBuilder 0.7
+  ([#56](https://github.com/rdy/fixture_builder/pull/56),
+  [#57](https://github.com/rdy/fixture_builder/pull/57),
+  [#87](https://github.com/rdy/fixture_builder/pull/87); thanks
+  [alexzherdev](https://github.com/alexzherdev)).
 
 ### Fixed
 
