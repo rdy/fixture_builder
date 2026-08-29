@@ -32,13 +32,13 @@ Installing
  1. Install:
    * Directly: `gem install fixture_builder`
    * Bundler:
-   
+
      ```ruby
      # Gemfile
      group :development, :test do
-       gem 'fixture_builder'
-
-     ```     
+       gem "fixture_builder"
+     end
+     ```
  1. Create a file which configures and declares your fixtures (see below for examples)
  1. Require the above file in your `spec_helper.rb` or `test_helper.rb`
  1. If you are using RSpec, ensure you have:
