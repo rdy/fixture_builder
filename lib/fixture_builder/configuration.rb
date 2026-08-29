@@ -65,9 +65,17 @@ module FixtureBuilder
       if sql.include?("%s")
         raise ArgumentError,
           "Positional %s table placeholders are no longer supported; use %<table>s or %{table}. " \
-            "See https://docs.ruby-lang.org/en/3.3/format_specifications_rdoc.html#label-Reference+by+Name."
+            "See https://docs.ruby-lang.org/en/3.3/format_specifications_rdoc.html" \
+            "#label-Reference+by+Name."
       end
 
+      FixtureBuilder.deprecator.warn(
+        "select_sql= is deprecated and planned for removal in FixtureBuilder 0.7. " \
+          "If you are actively using this feature, please share your use case at " \
+          "https://github.com/rdy/fixture_builder/issues/94 so we can consider the best way " \
+          "to continue to support it.",
+        caller_locations
+      )
       @select_sql = sql
     end
 
@@ -79,9 +87,17 @@ module FixtureBuilder
       if sql.include?("%s")
         raise ArgumentError,
           "Positional %s table placeholders are no longer supported; use %<table>s or %{table}. " \
-            "See https://docs.ruby-lang.org/en/3.3/format_specifications_rdoc.html#label-Reference+by+Name."
+            "See https://docs.ruby-lang.org/en/3.3/format_specifications_rdoc.html" \
+            "#label-Reference+by+Name."
       end
 
+      FixtureBuilder.deprecator.warn(
+        "delete_sql= is deprecated and planned for removal in FixtureBuilder 0.7. " \
+          "If you are actively using this feature, please share your use case at " \
+          "https://github.com/rdy/fixture_builder/issues/94 so we can consider the best way " \
+          "to continue to support it.",
+        caller_locations
+      )
       @delete_sql = sql
     end
 

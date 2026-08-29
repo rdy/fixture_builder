@@ -27,6 +27,10 @@
 
 ### Deprecated
 
+- Deprecate the `Configuration#select_sql=` and `Configuration#delete_sql=`
+  setters while preserving their behavior throughout FixtureBuilder 0.6. They
+  are planned for removal in 0.7 unless users report using them
+  ([#94](https://github.com/rdy/fixture_builder/issues/94)).
 - Deprecate passing hashes or arrays of fixture tuples to
   `Namer#populate_custom_names` or its `Builder` and `Configuration`
   delegations; support will be removed in FixtureBuilder 0.7.

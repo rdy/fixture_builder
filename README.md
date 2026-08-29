@@ -167,7 +167,9 @@ format("DELETE FROM %{table}", table: '"users"')    # => "DELETE FROM \"users\""
 ```
 
 Positional `%s` placeholders were deprecated in FixtureBuilder 0.5.0 and are
-rejected in 0.6.
+rejected in 0.6. Assigning `select_sql` or `delete_sql` is deprecated but remains
+supported throughout 0.6. The setters are planned for removal in 0.7 unless users
+[report using them](https://github.com/rdy/fixture_builder/issues/94).
 
 FixtureBuilder rebuilds fixtures when configured source files or generated fixture
 YAML differ from the manifest. This detects stale ignored artifacts left by CI cache
