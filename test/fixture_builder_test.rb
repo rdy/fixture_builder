@@ -115,29 +115,46 @@ class FixtureBuilderTest < Test::Unit::TestCase
     assert_equal "FixtureBuilder", FixtureBuilder.deprecator.gem_name
   end
 
-  def test_sql_setters_reject_positional_table_format
+  def test_sql_setters_reject_positional_table_format_without_warning
     {select_sql: "SELECT * FROM %s", delete_sql: "DELETE FROM %s"}.each do |attribute, sql|
       configuration = FixtureBuilder::Configuration.new
 
-      error = assert_raise(ArgumentError) do
-        configuration.public_send("#{attribute}=", sql)
+      _output, warning = capture_output do
+        error = assert_raise(ArgumentError) do
+          configuration.public_send("#{attribute}=", sql)
+        end
+
+        assert_equal(
+          "Positional %s table placeholders are no longer supported; use %<table>s or %{table}. " \
+            "See https://docs.ruby-lang.org/en/3.3/format_specifications_rdoc.html" \
+            "#label-Reference+by+Name.",
+          error.message
+        )
       end
 
-      assert_equal(
-        "Positional %s table placeholders are no longer supported; use %<table>s or %{table}. " \
-          "See https://docs.ruby-lang.org/en/3.3/format_specifications_rdoc.html#label-Reference+by+Name.",
-        error.message
-      )
+      assert_empty warning
     end
   end
 
-  def test_sql_setters_retain_named_table_formats
+  def test_sql_setters_warn_on_every_assignment_and_retain_named_table_formats
     ["%<table>s", "%{table}"].each do |table_format|
-      {select_sql: "SELECT * FROM #{table_format}", delete_sql: "DELETE FROM #{table_format}"}.each do |attribute, sql|
+      {
+        select_sql: "SELECT * FROM #{table_format}",
+        delete_sql: "DELETE FROM #{table_format}"
+      }.each do |attribute, sql|
         configuration = FixtureBuilder::Configuration.new
 
-        configuration.public_send("#{attribute}=", sql)
+        _output, warning = capture_output do
+          configuration.public_send("#{attribute}=", sql)
+        end
 
+        assert_include(
+          warning,
+          "#{attribute}= is deprecated and planned for removal in FixtureBuilder 0.7. " \
+            "If you are actively using this feature, please share your use case at " \
+            "https://github.com/rdy/fixture_builder/issues/94 so we can consider the best way " \
+            "to continue to support it."
+        )
         assert_equal sql, configuration.public_send(attribute)
       end
     end
