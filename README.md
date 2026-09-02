@@ -162,6 +162,8 @@ By default these are set as:
 * select_sql: SELECT * FROM %<table>s
 * delete_sql: DELETE FROM %<table>s
 
+FixtureBuilder omits database-generated columns from snapshots because Rails fixtures cannot write them; writable columns remain included.
+
 FixtureBuilder supports Ruby's two
 [reference by name](https://docs.ruby-lang.org/en/3.3/format_specifications_rdoc.html#label-Reference+by+Name)
 forms for the table placeholder. In `%<table>s`, `table` is the named key and
@@ -173,6 +175,10 @@ name as the value in either form:
 format("SELECT * FROM %<table>s", table: '"users"') # => "SELECT * FROM \"users\""
 format("DELETE FROM %{table}", table: '"users"')    # => "DELETE FROM \"users\""
 ```
+
+FixtureBuilder omits database-generated columns from snapshots because Rails
+fixtures cannot write them. Every other selected field is kept, including
+aliases and computed values introduced by a custom `select_sql`.
 
 Positional `%s` placeholders were deprecated in FixtureBuilder 0.5.0 and are
 rejected in 0.6. Assigning `select_sql` or `delete_sql` is deprecated but remains

@@ -23,7 +23,7 @@ class LegacyFixture
 end
 
 class NamerTest < Test::Unit::TestCase
-  include TestDatabase
+  include GeneratedFixtureSchema
 
   def setup
     configuration = FixtureBuilder::Configuration.new

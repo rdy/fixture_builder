@@ -103,6 +103,7 @@ module FixtureBuilder
             nil
           end
           rows = if table_klass && table_klass < ActiveRecord::Base
+            generated_names = generated_column_names(table_klass.table_name)
             table_klass.unscoped do
               table_klass.order(:id).all.collect do |obj|
                 attrs = obj.attributes_before_type_cast.slice(*table_klass.column_names)
@@ -112,12 +113,14 @@ module FixtureBuilder
 
                   attrs[attr_name] = JSON.parse(value)
                 end
-                attrs
+                attrs.except(*generated_names)
               end
             end
           else
+            generated_names = generated_column_names(table_name)
             ActiveRecord::Base.connection.select_all(format(select_sql,
               table: ActiveRecord::Base.connection.quote_table_name(table_name)))
+              .map { |row| row.except(*generated_names) }
           end
           next files if rows.empty?
 
@@ -133,6 +136,17 @@ module FixtureBuilder
         Date::DATE_FORMATS[:default] = default_date_format
       end
       say "Built #{fixtures.to_sentence}"
+    end
+
+    # Database-generated (virtual/stored generated) columns cannot be written
+    # back, so Rails rejects fixtures containing them. Only these names are
+    # removed, so custom `select_sql` aliases still reach Rails and fail loudly
+    # rather than disappearing silently.
+    private def generated_column_names(table_name)
+      connection = ActiveRecord::Base.connection
+      return [] unless connection.supports_virtual_columns?
+
+      connection.columns(table_name).select(&:virtual?).map(&:name)
     end
 
     def write_fixture_file(fixture_data, table_name)

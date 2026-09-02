@@ -46,6 +46,9 @@
 
 ### Fixed
 
+- Omit database-generated columns from generated fixtures so Rails can load
+  snapshots from tables that have them
+  ([#100](https://github.com/rdy/fixture_builder/issues/100)).
 - Generate model-backed fixture rows in primary-key order so fixture output
   remains stable ([#50](https://github.com/rdy/fixture_builder/pull/50); thanks
   [jackkinsella](https://github.com/jackkinsella)).
