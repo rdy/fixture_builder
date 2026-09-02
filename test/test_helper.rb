@@ -43,6 +43,7 @@ end
 
 require "sqlite3"
 require "fixture_builder"
+require_relative "support/test_database"
 
 class WizardData
   attr_reader :level, :title, :allies
@@ -105,20 +106,6 @@ class MagicalCreature < ActiveRecord::Base
   attribute :wizard_data, WizardDataType.new
 end
 # standard:enable Rails/ApplicationRecord
-
-def create_and_blow_away_old_db
-  ActiveRecord::Base.configurations = {"test" => {"adapter" => "sqlite3", "database" => "test.db"}}
-
-  ActiveRecord::Base.establish_connection(:test)
-
-  ActiveRecord::Base.connection.create_table(:magical_creatures, force: true) do |t|
-    t.column :name, :string
-    t.column :species, :string
-    t.column :powers, :string
-    t.column :wizard_data, :json
-    t.column :deleted, :boolean, default: false, null: false
-  end
-end
 
 def force_fixture_generation
   FileUtils.rm_f(File.expand_path("../tmp/fixture_builder.yml", __dir__))
