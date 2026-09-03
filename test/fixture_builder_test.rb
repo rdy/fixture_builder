@@ -9,6 +9,8 @@ class FixtureBuilderTestModel
 end
 
 class FixtureBuilderTest < Test::Unit::TestCase
+  include TestDatabase
+
   def teardown
     FixtureBuilder.instance_variable_set(:@configuration, nil)
   end
