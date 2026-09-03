@@ -2,7 +2,7 @@
 plan: Maintainer backlog triage
 status: active
 created: "2026-08-29"
-last_updated: "2026-08-31"
+last_updated: "2026-09-03"
 owner: Grant Hutchins
 scope: Open issues and pull requests in rdy/fixture_builder
 ---
@@ -94,21 +94,30 @@ after fixture generation succeeds or raises. The task must keep the test
 connection active while it builds fixtures without leaving later tasks attached
 to the test database.
 
+### Implemented issues
+
 #### [#100: Exclude generated columns from fixture snapshots](https://github.com/rdy/fixture_builder/issues/100)
 
-Fix this before releasing 0.6. Filter database-generated columns at the generic
-gem boundary for both model-backed and classless fixture extraction. Use Rails'
-compatible schema metadata:
-`connection.supports_virtual_columns? && column.virtual?`. Do not restore the old
-`Builder#serialize_attribute` hook; upstream `master` diverged before that hook,
-and consumer overrides of it are inert.
+Implemented by [#105](https://github.com/rdy/fixture_builder/pull/105) before
+0.6. Its six acceptance criteria are met: schema metadata identifies generated
+columns; model-backed and classless extraction filter them; writable attributes
+are retained; regressions cover both paths; and Rails loads the resulting
+fixtures. The full Ruby/Rails CI matrix passed.
 
-A real upgrade reproduction confirmed that manifest-version invalidation already
-rejects an old manifest and rebuilds fixtures. The remaining failure is that
-Rails 8.1 rejects generated columns during fixture insertion after
-`attributes_before_type_cast` writes them into the rebuilt snapshot. Advance the
-manifest format with this behavior change so upgrading causes one rebuild. Do
-not add a live-schema fingerprint; the reproduction disproved that design.
+Model-backed and classless extraction remove database-generated columns using
+Rails-compatible schema metadata:
+`connection.supports_virtual_columns? && column.virtual?`. The raw-query path
+continues to execute deprecated `select_sql` verbatim, retaining aliases and
+computed fields that are not generated schema columns. The old
+`Builder#serialize_attribute` hook remains absent; upstream `master` diverged
+before that hook, leaving consumer overrides inert.
+
+Keep `Configuration::MANIFEST_VERSION` at `1`: this behavior had not shipped,
+so it needs no format migration. Existing fixture-output hashing continues to
+validate generated snapshots. Do not add a live-schema fingerprint. The
+reproduction established that the failure was Rails 8.1 rejecting generated
+columns during fixture insertion after `attributes_before_type_cast` placed them
+in the snapshot.
 
 ### Issues to close
 
@@ -234,18 +243,20 @@ reviving the proposed public hook surface.
 
 #### Exclude generated columns for #100
 
-- **Implementation:** Derive writable columns from connection schema metadata in
-  `lib/fixture_builder/builder.rb`. Apply the same filter to model-backed and raw
-  query extraction, guarded by
-  `connection.supports_virtual_columns? && column.virtual?`. Advance the manifest format so upgrading rebuilds affected
-  fixtures once. Do not add a serialization hook or live-schema fingerprint.
-- **Tests:** Add anonymous SQLite generated-column coverage that exercises
-  ordinary fixture generation and loads the resulting snapshot successfully.
-  Cover both model-backed and classless extraction, prove the generated column
-  is absent, and prove writable attributes remain.
-- **Completion gate:** The regression fails on current `master`; then ordinary
-  generation produces loadable fixtures, an old manifest triggers one rebuild,
-  and the focused tests plus `bin/rake` pass.
+Completed by [#105](https://github.com/rdy/fixture_builder/pull/105).
+
+- [x] **Implementation:** Derive generated column names from connection schema
+  metadata in `lib/fixture_builder/builder.rb`. Apply the same filter to
+  model-backed and raw-query extraction, guarded by
+  `connection.supports_virtual_columns? && column.virtual?`. Keep manifest
+  version `1`; the behavior had not shipped, so no format migration is needed.
+  Do not add a serialization hook or live-schema fingerprint.
+- [x] **Tests:** Add SQLite generated-column coverage for model-backed and
+  classless extraction. Prove generated columns are absent, writable attributes
+  remain, and raw `select_sql` aliases are preserved.
+- [x] **Completion gate:** The regression failed before implementation; ordinary
+  generation now produces loadable fixtures, and `bin/rake` passed with 57
+  tests and 164 assertions.
 
 #### Clean up dropped-table fixtures conservatively
 
@@ -262,7 +273,8 @@ reviving the proposed public hook surface.
 
 #### Validate and release
 
-- [ ] Land #100 and the conservative dropped-table cleanup before cutting 0.6.
+- [x] Land #100 before cutting 0.6 (#105).
+- [ ] Land the conservative dropped-table cleanup before cutting 0.6.
 - [ ] Run `bin/rake` with the default dependency set.
 - [ ] Run the stable combinations documented by `.github/workflows/ci.yml`,
       using `RAILS_VERSION` with `bundle update --all` and `bin/rake` as
@@ -272,6 +284,20 @@ reviving the proposed public hook surface.
 - [ ] Keep #94 open throughout the released 0.6 deprecation period.
 
 ### Phase 3: Focused compatibility work
+
+#### Investigate PostgreSQL identity columns for #106
+
+Use a real PostgreSQL reproduction to establish fixture-loading behavior for
+`GENERATED ALWAYS AS IDENTITY` columns. Rails treats stored generated columns as
+`virtual?` and excludes them from fixture insertion, but it does not currently
+special-case identity columns or emit `OVERRIDING SYSTEM VALUE`.
+
+Do not broaden #100's filter to every database-populated column: serial,
+autoincrement, and `GENERATED BY DEFAULT AS IDENTITY` columns accept explicit
+fixture values. Active Record has no adapter-neutral public predicate for all
+non-insertable or non-updatable columns. Decide whether the `ALWAYS` identity
+case belongs in Rails fixture insertion or FixtureBuilder only after the
+PostgreSQL reproduction.
 
 #### Support custom and absent primary keys for #72
 
@@ -332,10 +358,10 @@ implementation roadmap or authorize deletion of this document.
 
 The plan is complete only when:
 
-- Issues #69, #70, #99, and #100 have landed with their focused regressions.
-- Generated columns are excluded before 0.6 from both fixture extraction paths,
-  the manifest format causes one upgrade rebuild, and the resulting fixtures
-  load successfully.
+- Issues #69, #70, and #99 have landed with their focused regressions.
+- [x] #100 landed with focused regressions: generated columns are excluded from
+  both fixture extraction paths before 0.6, its resulting fixtures load
+  successfully, and no manifest-version migration was needed.
 - Dropped-table cleanup removes only unchanged files recorded by the prior
   manifest and preserves modified or unrecorded YAML.
 - Fixture generation supports custom and absent primary keys deterministically.
@@ -359,9 +385,10 @@ The plan is complete only when:
   tested. Fixture snapshots must not silently omit writable data. Remove a stale
   fixture only when the prior manifest recorded it and its current digest still
   matches; preserve modified and unrecorded YAML.
-- **Manifest invalidation:** Advance the manifest format for the 0.6 generated-
-  column behavior change so existing snapshots rebuild once. Do not add a live-
-  schema fingerprint.
+- **Manifest invalidation:** Keep manifest version `1` for the 0.6 generated-
+  column behavior change; it had not shipped, so no format migration was needed.
+  Existing fixture-output hashing continues to validate generated snapshots. Do
+  not add a live-schema fingerprint.
 - **Public API timing:** A deprecation in 0.6 remains functional throughout 0.6
   and may only be removed in 0.7.
 - **Nested fixture paths:** Directory creation, cleanup, and manifest validation
