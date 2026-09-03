@@ -45,6 +45,7 @@ module TestDatabase
       t.column :species, :string
       t.column :powers, :string
       t.column :wizard_data, :json
+      t.column :born_on, :date
       t.column :deleted, :boolean, default: false, null: false
     end
 
