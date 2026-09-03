@@ -6,7 +6,7 @@
 # their own +setup+ or from individual tests, exactly as they did when this
 # lived as a top-level helper method.
 module TestDatabase
-  CONFIGURATION = {"adapter" => "sqlite3", "database" => "test.db"}.freeze
+  CONFIGURATION = {"adapter" => "sqlite3", "database" => ":memory:"}.freeze
 
   def create_and_blow_away_old_db
     ActiveRecord::Base.configurations = {"test" => CONFIGURATION}
