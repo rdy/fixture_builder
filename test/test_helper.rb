@@ -34,10 +34,10 @@ def create_fixtures(*table_names, &block)
   # rewritten YAML is reparsed; Rails 8.0 and 8.1 use the original load path.
   if fixture_set.respond_to?(:without_parsing_cache)
     fixture_set.without_parsing_cache do
-      fixture_set.create_fixtures(ActiveSupport::TestCase.fixture_path, table_names, {}, &block)
+      fixture_set.create_fixtures(test_path("fixtures"), table_names, {}, &block)
     end
   else
-    fixture_set.create_fixtures(ActiveSupport::TestCase.fixture_path, table_names, {}, &block)
+    fixture_set.create_fixtures(test_path("fixtures"), table_names, {}, &block)
   end
 end
 
@@ -96,6 +96,16 @@ class WizardDataType < ActiveRecord::Type::Json
 end
 
 # standard:disable Rails/ApplicationRecord
+class GeneratedCreature < ActiveRecord::Base
+end
+
+# Inferable from the `relocated_creatures` table name, but backed by a
+# differently named table, so writable column names must come from
+# `table_name` rather than the table FixtureBuilder is iterating.
+class RelocatedCreature < ActiveRecord::Base
+  self.table_name = "creature_archive"
+end
+
 class MagicalCreature < ActiveRecord::Base
   validates_presence_of :name, :species
   serialize :powers, type: Array

@@ -69,6 +69,101 @@ class FixtureBuilderTest < Test::Unit::TestCase
     assert !generated_fixture["uni"].key?("virtual")
   end
 
+  def test_generated_columns_are_excluded_for_model_backed_tables
+    create_and_blow_away_old_db
+    force_fixture_generation
+
+    table_name = GeneratedCreature.table_name
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.files_to_check = []
+      fbuilder.skip_tables = ActiveRecord::Base.connection.tables - [table_name]
+      fbuilder.factory { GeneratedCreature.create!(name: "Myrddin") }
+    end
+
+    generated_fixture = YAML.safe_load_file(test_path("fixtures/#{table_name}.yml"))
+    assert_equal "Myrddin", generated_fixture.dig("myrddin", "name")
+    assert_not_include generated_fixture.fetch("myrddin"), "name_length"
+
+    GeneratedCreature.delete_all
+    create_fixtures(table_name)
+    assert_equal 7, GeneratedCreature.find_by!(name: "Myrddin").name_length
+  end
+
+  def test_generated_columns_are_excluded_for_raw_query_tables
+    create_and_blow_away_old_db
+    force_fixture_generation
+
+    table_name = GENERATED_COLUMN_RECORDS_TABLE
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.files_to_check = []
+      fbuilder.skip_tables = ActiveRecord::Base.connection.tables - [table_name]
+      fbuilder.factory do
+        ActiveRecord::Base.connection.execute(
+          "INSERT INTO #{table_name} (name) VALUES ('Merlin')"
+        )
+      end
+    end
+
+    generated_fixture = YAML.safe_load_file(test_path("fixtures/#{table_name}.yml"))
+    assert_equal "Merlin", generated_fixture.dig("merlin", "name")
+    assert_not_include generated_fixture.fetch("merlin"), "name_length"
+
+    ActiveRecord::Base.connection.delete("DELETE FROM #{table_name}")
+    create_fixtures(table_name)
+    assert_equal 6,
+      ActiveRecord::Base.connection.select_value("SELECT name_length FROM #{table_name}")
+  end
+
+  def test_raw_query_select_aliases_are_preserved
+    create_and_blow_away_old_db
+    force_fixture_generation
+
+    table_name = GENERATED_COLUMN_RECORDS_TABLE
+    capture_output do
+      FixtureBuilder.configure do |fbuilder|
+        fbuilder.files_to_check = []
+        fbuilder.skip_tables = ActiveRecord::Base.connection.tables - [table_name]
+        fbuilder.select_sql = "SELECT *, upper(name) AS shouted_name FROM %<table>s"
+        fbuilder.factory do
+          ActiveRecord::Base.connection.execute(
+            "INSERT INTO #{table_name} (name) VALUES ('Merlin')"
+          )
+        end
+      end
+    end
+
+    generated_fixture = YAML.safe_load_file(test_path("fixtures/#{table_name}.yml"))
+    record = generated_fixture.fetch("merlin")
+    assert_equal "Merlin", record["name"]
+    # A custom `select_sql` is executed as written, so its alias reaches the
+    # snapshot. Only the database-generated column, which cannot be inserted,
+    # is removed. The alias is deliberately not a column of the table, so this
+    # fixture is not expected to load.
+    assert_equal "MERLIN", record["shouted_name"]
+    assert_not_include record, "name_length"
+  end
+
+  def test_generated_columns_come_from_the_model_table_name
+    create_and_blow_away_old_db
+    force_fixture_generation
+
+    table_name = RELOCATED_CREATURES_TABLE
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.files_to_check = []
+      fbuilder.skip_tables = ActiveRecord::Base.connection.tables - [table_name]
+      fbuilder.factory { RelocatedCreature.create!(name: "Nimue") }
+    end
+
+    generated_fixture = YAML.safe_load_file(test_path("fixtures/#{table_name}.yml"))
+    # `name` is a plain column on the model's own table, so it must survive even
+    # though the iterated table of the same inferred name generates it.
+    assert_include generated_fixture, "nimue"
+    record = generated_fixture.fetch("nimue")
+    assert_include record, "name"
+    assert_equal "Nimue", record["name"]
+    assert_not_include record, "unrelated"
+  end
+
   def test_custom_json_attribute_type_round_trips_through_fixtures
     create_and_blow_away_old_db
     force_fixture_generation

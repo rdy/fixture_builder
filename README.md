@@ -162,6 +162,9 @@ By default these are set as:
 * select_sql: SELECT * FROM %<table>s
 * delete_sql: DELETE FROM %<table>s
 
+FixtureBuilder omits database-generated columns from snapshots because Rails
+fixtures cannot write them.
+
 FixtureBuilder supports Ruby's two
 [reference by name](https://docs.ruby-lang.org/en/3.3/format_specifications_rdoc.html#label-Reference+by+Name)
 forms for the table placeholder. In `%<table>s`, `table` is the named key and
