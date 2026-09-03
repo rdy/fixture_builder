@@ -99,11 +99,11 @@ end
 class GeneratedCreature < ActiveRecord::Base
 end
 
-# Inferable from the `relocated_creatures` table name, but backed by a
-# differently named table, so writable column names must come from
-# `table_name` rather than the table FixtureBuilder is iterating.
+# Its configured table name is intentionally not inferable from this class
+# name, so FixtureBuilder must resolve it from loaded model metadata.
 class RelocatedCreature < ActiveRecord::Base
   self.table_name = "creature_archive"
+  attribute :wizard_data, WizardDataType.new
 end
 
 class MagicalCreature < ActiveRecord::Base

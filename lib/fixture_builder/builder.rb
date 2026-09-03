@@ -16,6 +16,7 @@ module FixtureBuilder
       clean_out_old_data
       create_fixture_objects
       names_from_ivars!
+      @models_by_table = resolve_models_by_table
       write_data_to_files
       after_build&.call
     end
@@ -64,7 +65,6 @@ module FixtureBuilder
 
     def clean_out_old_data
       delete_tables
-      delete_yml_files
     end
 
     def delete_tables
@@ -86,6 +86,14 @@ module FixtureBuilder
     end
     # standard:enable Rails/Output
 
+    def write_fixture_file(fixture_data, table_name)
+      File.write(fixture_file(table_name), fixture_data.to_yaml)
+    end
+
+    def fixture_file(table_name)
+      fixtures_dir("#{table_name}.yml")
+    end
+
     def dump_empty_fixtures_for_all_tables
       tables.each do |table_name|
         write_fixture_file({}, table_name)
@@ -94,15 +102,11 @@ module FixtureBuilder
 
     def dump_tables
       fixtures = tables.inject([]) do |files, table_name|
-        table_klass = begin
-          table_name.classify.constantize
-        rescue
-          nil
-        end
-        rows = if table_klass && table_klass < ActiveRecord::Base
-          generated_names = generated_column_names(table_klass.table_name)
+        table_klass = @models_by_table.fetch(table_name)
+        generated_names = generated_column_names(table_name)
+        rows = if table_klass
           table_klass.unscoped do
-            table_klass.order(:id).all.collect do |obj|
+            table_klass.order(Array(table_klass.primary_key)).all.collect do |obj|
               attrs = obj.attributes_before_type_cast.slice(*table_klass.column_names)
               attrs.each do |attr_name, value|
                 column_type = table_klass.columns_hash.fetch(attr_name).type
@@ -114,7 +118,6 @@ module FixtureBuilder
             end
           end
         else
-          generated_names = generated_column_names(table_name)
           ActiveRecord::Base.connection.select_all(format(select_sql,
             table: ActiveRecord::Base.connection.quote_table_name(table_name)))
             .map { |row| row.except(*generated_names) }
@@ -132,24 +135,51 @@ module FixtureBuilder
       say "Built #{fixtures.to_sentence}"
     end
 
+    private
+
+    def resolve_models_by_table
+      tables.each_with_object({}) do |table_name, models_by_table|
+        models_by_table[table_name] = resolve_model(table_name)
+      end
+    end
+
+    def resolve_model(table_name)
+      table_name.classify.safe_constantize
+      candidates = ActiveRecord::Base.descendants.select do |model|
+        eligible_model?(model, table_name)
+      end
+      root_models = candidates.reject do |model|
+        candidates.any? { |candidate| candidate != model && model < candidate }
+      end
+
+      return if root_models.empty?
+      return root_models.first if root_models.one?
+
+      raise AmbiguousModelError.new(table_name, root_models)
+    end
+
+    def eligible_model?(model, table_name)
+      return false if model.abstract_class?
+
+      model_name = model.name
+      return false unless model_name && model_name.safe_constantize.equal?(model)
+      return false unless model.table_name == table_name
+      return false unless model.connection_pool.equal?(ActiveRecord::Base.connection_pool)
+
+      primary_keys = Array(model.primary_key).compact
+      primary_keys.any? && primary_keys.all? { |key| model.columns_hash.key?(key) }
+    end
+
     # A database-generated (virtual/stored generated) column cannot be
     # inserted, so Rails rejects a fixture file containing it. Only those
     # column names are removed from the extracted rows; everything else a row
     # carries - including an expression a custom `select_sql` selects - is
     # left as it was produced.
-    private def generated_column_names(table_name)
+    def generated_column_names(table_name)
       connection = ActiveRecord::Base.connection
       return [] unless connection.supports_virtual_columns?
 
       connection.columns(table_name).select(&:virtual?).map(&:name)
-    end
-
-    def write_fixture_file(fixture_data, table_name)
-      File.write(fixture_file(table_name), fixture_data.to_yaml)
-    end
-
-    def fixture_file(table_name)
-      fixtures_dir("#{table_name}.yml")
     end
   end
 end

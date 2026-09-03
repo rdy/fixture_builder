@@ -57,20 +57,17 @@ module TestDatabase
     # database-generated column.
     create_generated_column_table(GENERATED_COLUMN_RECORDS_TABLE)
 
-    # The table FixtureBuilder iterates (`relocated_creatures`) alongside the
-    # differently named table `RelocatedCreature` actually reads.
-    #
-    # The two tables expose deliberately incompatible schemas: the iterated
-    # table's only writable column is `unrelated` and its `name` is
-    # database-generated, while the model's table has a writable `name`. Reading
-    # generated columns from the iterated table instead of the model's table
-    # therefore strips `name` from the fixture.
+    # `RelocatedCreature` is configured for `creature_archive`, even though its
+    # class name conventionally maps to the distinct `relocated_creatures` table.
+    # These intentionally incompatible tables prove resolution follows the
+    # configured table name rather than inferred constant naming.
     connection.create_table(RELOCATED_CREATURES_TABLE, force: true) do |t|
       t.string :unrelated
       t.virtual :name, type: :string, as: "upper(unrelated)", stored: true
     end
     connection.create_table(CREATURE_ARCHIVE_TABLE, force: true) do |t|
       t.string :name, null: false
+      t.json :wizard_data
     end
 
     GeneratedCreature.reset_column_information

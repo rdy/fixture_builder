@@ -188,21 +188,32 @@ class FixtureBuilderTest < Test::Unit::TestCase
     create_and_blow_away_old_db
     force_fixture_generation
 
-    table_name = RELOCATED_CREATURES_TABLE
+    table_names = [CREATURE_ARCHIVE_TABLE, RELOCATED_CREATURES_TABLE]
+    wizard_data = WizardData.new(level: 99, title: "Lady of the Lake", allies: ["Arthur"])
     FixtureBuilder.configure do |fbuilder|
       fbuilder.files_to_check = []
-      fbuilder.skip_tables = ActiveRecord::Base.connection.tables - [table_name]
-      fbuilder.factory { RelocatedCreature.create!(name: "Nimue") }
+      fbuilder.skip_tables = ActiveRecord::Base.connection.tables - table_names
+      fbuilder.factory do
+        RelocatedCreature.create!(name: "Nimue", wizard_data: wizard_data)
+        ActiveRecord::Base.connection.execute(
+          "INSERT INTO #{RELOCATED_CREATURES_TABLE} (unrelated) VALUES ('Morgana')"
+        )
+      end
     end
 
-    generated_fixture = YAML.safe_load_file(test_path("fixtures/#{table_name}.yml"))
-    # `name` is a plain column on the model's own table, so it must survive even
-    # though the iterated table of the same inferred name generates it.
-    assert_include generated_fixture, "nimue"
-    record = generated_fixture.fetch("nimue")
-    assert_include record, "name"
-    assert_equal "Nimue", record["name"]
-    assert_not_include record, "unrelated"
+    archive_fixture = YAML.safe_load_file(test_path("fixtures/#{CREATURE_ARCHIVE_TABLE}.yml"))
+    assert_equal(
+      {"level" => 99, "title" => "Lady of the Lake", "allies" => ["Arthur"]},
+      archive_fixture.dig("nimue", "wizard_data")
+    )
+
+    # `RelocatedCreature` maps to `creature_archive`, not the conventionally
+    # inferred `relocated_creatures` table. The latter remains on the raw SQL
+    # path, where its database-generated `name` is excluded.
+    relocated_fixture = YAML.safe_load_file(test_path("fixtures/#{RELOCATED_CREATURES_TABLE}.yml"))
+    record = relocated_fixture.fetch("relocated_creatures_001")
+    assert_equal "Morgana", record["unrelated"]
+    assert_not_include record, "name"
   end
 
   def test_custom_json_attribute_type_round_trips_through_fixtures
@@ -251,6 +262,38 @@ class FixtureBuilderTest < Test::Unit::TestCase
   def test_deprecator_has_fixture_builder_metadata
     assert_equal "0.7", FixtureBuilder.deprecator.deprecation_horizon
     assert_equal "FixtureBuilder", FixtureBuilder.deprecator.gem_name
+  end
+
+  def test_ambiguous_model_error_exposes_its_table_name_and_models
+    models = [MagicalCreature, GeneratedCreature]
+    error = FixtureBuilder::AmbiguousModelError.new("creatures", models)
+
+    assert_equal "creatures", error.table_name
+    assert_equal [GeneratedCreature, MagicalCreature], error.models
+    assert_equal "Multiple models match table creatures: GeneratedCreature, MagicalCreature", error.message
+  end
+
+  def test_conventionally_named_autoloaded_model_uses_model_backed_serialization
+    create_and_blow_away_old_db
+    table_name = "fixture_builder_autoloaded_models"
+
+    with_temporary_table(table_name, columns: {wizard_data: :json}) do
+      with_autoloaded_model("FixtureBuilderAutoloadedModel") do
+        force_fixture_generation
+        build_fixtures_for(table_name) do
+          value = ActiveRecord::Base.connection.quote({"level" => 99}.to_json)
+          ActiveRecord::Base.connection.execute(
+            "INSERT INTO #{table_name} (wizard_data) VALUES (#{value})"
+          )
+        end
+
+        assert_equal :json,
+          Object.const_get(:FixtureBuilderAutoloadedModel).columns_hash.fetch("wizard_data").type
+
+        fixture = YAML.safe_load_file(test_path("fixtures/#{table_name}.yml"))
+        assert_equal({"level" => 99}, fixture.values.first["wizard_data"])
+      end
+    end
   end
 
   def test_sql_setters_reject_positional_table_format_without_warning
@@ -610,7 +653,246 @@ class FixtureBuilderTest < Test::Unit::TestCase
     end
   end
 
+  def test_unrelated_models_for_a_table_raise_before_replacing_its_fixture
+    create_and_blow_away_old_db
+    [
+      ["FixtureBuilderAmbiguousAlpha", "FixtureBuilderAmbiguousZulu"],
+      ["FixtureBuilderAmbiguousZulu", "FixtureBuilderAmbiguousAlpha"]
+    ].each do |class_names|
+      table_name = "fixture_builder_ambiguous_models"
+      original_fixture = "existing fixture bytes\n"
+
+      with_temporary_table(table_name, columns: {name: :string}) do
+        with_named_models(class_names, table_name: table_name) do
+          fixture_path = test_path("fixtures/#{table_name}.yml")
+          File.binwrite(fixture_path, original_fixture)
+          force_fixture_generation
+
+          error = assert_raise(FixtureBuilder::AmbiguousModelError) do
+            build_fixtures_for(table_name) do
+              ActiveRecord::Base.connection.execute(
+                "INSERT INTO #{table_name} (name) VALUES ('Merlin')"
+              )
+            end
+          end
+
+          assert_equal table_name, error.table_name
+          assert_equal class_names.sort, error.models.map(&:name)
+          assert_equal(
+            "Multiple models match table #{table_name}: #{class_names.sort.join(", ")}",
+            error.message
+          )
+          assert_equal original_fixture, File.binread(fixture_path)
+        end
+      end
+    end
+  end
+
+  def test_concrete_siblings_under_an_abstract_ancestor_remain_ambiguous
+    create_and_blow_away_old_db
+    table_name = "fixture_builder_abstract_sibling_models"
+
+    with_temporary_table(table_name, columns: {name: :string}) do
+      with_abstract_sibling_models(
+        "FixtureBuilderAbstractAncestor",
+        ["FixtureBuilderAbstractAlpha", "FixtureBuilderAbstractZulu"],
+        table_name: table_name
+      ) do
+        force_fixture_generation
+
+        error = assert_raise(FixtureBuilder::AmbiguousModelError) do
+          build_fixtures_for(table_name) do
+            ActiveRecord::Base.connection.execute(
+              "INSERT INTO #{table_name} (name) VALUES ('Merlin')"
+            )
+          end
+        end
+
+        assert_equal %w[FixtureBuilderAbstractAlpha FixtureBuilderAbstractZulu],
+          error.models.map(&:name)
+      end
+    end
+  end
+
+  def test_sti_models_for_one_table_dump_all_subtype_rows
+    create_and_blow_away_old_db
+    table_name = "fixture_builder_sti_models"
+
+    with_temporary_table(table_name, columns: {name: :string, type: :string}) do
+      with_named_sti_models(
+        "FixtureBuilderStiBase",
+        "FixtureBuilderStiSubclass",
+        table_name: table_name
+      ) do |base_model, subclass_model|
+        force_fixture_generation
+        build_fixtures_for(table_name) do
+          base_model.create!(name: "Base creature")
+          subclass_model.create!(name: "Subclass creature")
+        end
+
+        fixture = YAML.safe_load_file(test_path("fixtures/#{table_name}.yml"))
+        assert_equal %w[Base\ creature Subclass\ creature], fixture.values.pluck("name")
+        assert_nil fixture.values.first["type"]
+        assert_equal subclass_model.name, fixture.values.last["type"]
+      end
+    end
+  end
+
+  def test_separate_pool_model_with_the_same_table_name_is_ignored
+    create_and_blow_away_old_db
+    table_name = "fixture_builder_separate_pool_models"
+
+    with_temporary_table(table_name, columns: {name: :string}) do
+      with_separate_pool_model("FixtureBuilderSeparatePool", table_name: table_name) do
+        force_fixture_generation
+        build_fixtures_for(table_name) do
+          ActiveRecord::Base.connection.execute(
+            "INSERT INTO #{table_name} (name) VALUES ('Base pool row')"
+          )
+        end
+
+        fixture = YAML.safe_load_file(test_path("fixtures/#{table_name}.yml"))
+        assert_equal "Base pool row", fixture.values.first["name"]
+      end
+    end
+  end
+
+  def test_candidate_schema_errors_propagate
+    create_and_blow_away_old_db
+    table_name = "fixture_builder_schema_errors"
+    error_class = Class.new(StandardError)
+
+    with_temporary_table(table_name, columns: {name: :string}) do
+      with_named_models(["FixtureBuilderSchemaError"], table_name: table_name) do |model|
+        model.define_singleton_method(:columns_hash) { raise error_class }
+        force_fixture_generation
+
+        assert_raise(error_class) do
+          build_fixtures_for(table_name) do
+            ActiveRecord::Base.connection.execute(
+              "INSERT INTO #{table_name} (name) VALUES ('Merlin')"
+            )
+          end
+        end
+      end
+    end
+  end
+
+  def test_id_less_model_table_uses_raw_sql_and_preserves_select_aliases
+    create_and_blow_away_old_db
+    table_name = "fixture_builder_id_less_models"
+
+    with_temporary_table(table_name, columns: {name: :string}, id: false) do
+      with_named_models(["FixtureBuilderIdLess"], table_name: table_name) do
+        force_fixture_generation
+        FixtureBuilder.configure do |fbuilder|
+          fbuilder.files_to_check = []
+          fbuilder.skip_tables = ActiveRecord::Base.connection.tables - [table_name]
+          fbuilder.select_sql = "SELECT *, upper(name) AS shouted_name FROM %<table>s"
+          fbuilder.factory do
+            ActiveRecord::Base.connection.execute(
+              "INSERT INTO #{table_name} (name) VALUES ('Merlin')"
+            )
+          end
+        end
+
+        fixture = YAML.safe_load_file(test_path("fixtures/#{table_name}.yml"))
+        assert_equal "Merlin", fixture.values.first["name"]
+        assert_equal "MERLIN", fixture.values.first["shouted_name"]
+      end
+    end
+  end
+
   private
+
+  def build_fixtures_for(*table_names, &factory)
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.files_to_check = []
+      fbuilder.skip_tables = ActiveRecord::Base.connection.tables - table_names
+      fbuilder.factory(&factory)
+    end
+  end
+
+  def with_temporary_table(table_name, columns:, id: true)
+    connection = ActiveRecord::Base.connection
+    options = {force: true}
+    options[:id] = false unless id
+    connection.create_table(table_name, **options) do |table|
+      columns.each { |name, type| table.column(name, type) }
+    end
+    yield connection
+  ensure
+    connection.drop_table(table_name) if connection&.data_source_exists?(table_name)
+    FileUtils.rm_f(test_path("fixtures/#{table_name}.yml"))
+  end
+
+  # standard:disable Rails/ApplicationRecord
+  def with_autoloaded_model(class_name)
+    path = test_path("#{class_name.underscore}.rb")
+    File.write(path, <<~RUBY)
+      Object.const_set(:#{class_name}, Class.new(ActiveRecord::Base) do
+        attribute :wizard_data, WizardDataType.new
+      end)
+    RUBY
+    Object.autoload(class_name.to_sym, path)
+    yield
+  ensure
+    Object.send(:remove_const, class_name) if Object.const_defined?(class_name, false)
+    FileUtils.rm_f(path) if path
+  end
+
+  def with_named_models(class_names, table_name:)
+    models = []
+    class_names.each do |class_name|
+      models << Object.const_set(class_name, Class.new(ActiveRecord::Base))
+    end
+    models.each { |model| model.table_name = table_name }
+    yield(*models)
+  ensure
+    remove_model_constants(models.reverse)
+  end
+
+  def with_abstract_sibling_models(ancestor_name, class_names, table_name:)
+    models = []
+    ancestor = Object.const_set(ancestor_name, Class.new(ActiveRecord::Base))
+    ancestor.abstract_class = true
+    class_names.each do |class_name|
+      models << Object.const_set(class_name, Class.new(ancestor))
+    end
+    models.each { |model| model.table_name = table_name }
+    yield(*models)
+  ensure
+    remove_model_constants(models.reverse + [ancestor])
+  end
+
+  def with_named_sti_models(base_name, subclass_name, table_name:)
+    base_model = Object.const_set(base_name, Class.new(ActiveRecord::Base))
+    base_model.table_name = table_name
+    subclass_model = Object.const_set(subclass_name, Class.new(base_model))
+    yield(base_model, subclass_model)
+  ensure
+    remove_model_constants([subclass_model, base_model])
+  end
+
+  def with_separate_pool_model(class_name, table_name:)
+    model = Object.const_set(class_name, Class.new(ActiveRecord::Base))
+    model.establish_connection(adapter: "sqlite3", database: ":memory:")
+    model.table_name = table_name
+    yield model
+  ensure
+    model&.connection_pool&.disconnect!
+    remove_model_constants([model])
+  end
+
+  # standard:enable Rails/ApplicationRecord
+
+  def remove_model_constants(models)
+    models&.each do |model|
+      next unless model&.name && Object.const_defined?(model.name, false)
+
+      Object.send(:remove_const, model.name)
+    end
+  end
 
   def assert_manifest_rebuilds(payload)
     create_and_blow_away_old_db
