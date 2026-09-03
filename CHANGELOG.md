@@ -46,6 +46,10 @@
 
 ### Fixed
 
+- Resolve loaded Active Record models by their configured table names, preserving
+  model-backed attribute serialization, and raise deterministically when unrelated
+  models ambiguously own one table
+  ([#109](https://github.com/rdy/fixture_builder/issues/109)).
 - Omit database-generated columns from generated fixtures so Rails can load
   snapshots from tables that have them
   ([#100](https://github.com/rdy/fixture_builder/issues/100)).
