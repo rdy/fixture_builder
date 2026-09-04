@@ -21,6 +21,11 @@ end
 require "active_support/concern"
 require "active_record"
 require "active_record/fixtures"
+require "sqlite3"
+
+ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: ":memory:")
+
+require "with_model/test_unit"
 
 def create_fixtures(*table_names, &block)
   fixture_set = ActiveRecord::FixtureSet
@@ -41,9 +46,8 @@ def create_fixtures(*table_names, &block)
   end
 end
 
-require "sqlite3"
 require "fixture_builder"
-require_relative "support/test_database"
+require_relative "support/test_schema"
 
 class WizardData
   attr_reader :level, :title, :allies

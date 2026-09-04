@@ -23,7 +23,7 @@ class LegacyFixture
 end
 
 class NamerTest < Test::Unit::TestCase
-  include TestDatabase
+  include TestSchema
 
   def setup
     configuration = FixtureBuilder::Configuration.new
@@ -64,7 +64,6 @@ class NamerTest < Test::Unit::TestCase
   end
 
   def test_populate_custom_names_from_current_fixture_sets
-    create_and_blow_away_old_db
     fixture_sets = ActiveRecord::FixtureSet.create_fixtures(
       test_path("legacy_fixtures"),
       MagicalCreature.table_name

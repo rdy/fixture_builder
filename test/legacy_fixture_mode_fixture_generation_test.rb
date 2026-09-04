@@ -3,10 +3,9 @@
 require File.expand_path(File.join(File.dirname(__FILE__), "test_helper"))
 
 class LegacyFixtureModeFixtureGenerationTest < Test::Unit::TestCase
-  include TestDatabase
+  include TestSchema
 
   def setup
-    create_and_blow_away_old_db
     force_fixture_generation
 
     FixtureBuilder.configure do |fbuilder|

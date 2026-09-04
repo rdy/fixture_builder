@@ -9,7 +9,7 @@ class FixtureBuilderTestModel
 end
 
 class FixtureBuilderTest < Test::Unit::TestCase
-  include TestDatabase
+  include TestSchema
 
   def teardown
     FixtureBuilder.instance_variable_set(:@configuration, nil)
@@ -27,7 +27,6 @@ class FixtureBuilderTest < Test::Unit::TestCase
   end
 
   def test_ivar_naming
-    create_and_blow_away_old_db
     force_fixture_generation
 
     FixtureBuilder.configure do |fbuilder|
@@ -41,7 +40,6 @@ class FixtureBuilderTest < Test::Unit::TestCase
   end
 
   def test_serialization
-    create_and_blow_away_old_db
     force_fixture_generation
 
     FixtureBuilder.configure do |fbuilder|
@@ -56,7 +54,6 @@ class FixtureBuilderTest < Test::Unit::TestCase
   end
 
   def test_dates_are_iso_formatted_without_mutating_global_date_formats
-    create_and_blow_away_old_db
     force_fixture_generation
 
     default_date_format_exists = Date::DATE_FORMATS.key?(:default)
@@ -97,7 +94,6 @@ class FixtureBuilderTest < Test::Unit::TestCase
   end
 
   def test_do_not_include_virtual_attributes
-    create_and_blow_away_old_db
     force_fixture_generation
 
     FixtureBuilder.configure do |fbuilder|
@@ -111,7 +107,6 @@ class FixtureBuilderTest < Test::Unit::TestCase
   end
 
   def test_generated_columns_are_excluded_for_model_backed_tables
-    create_and_blow_away_old_db
     force_fixture_generation
 
     table_name = GeneratedCreature.table_name
@@ -131,7 +126,6 @@ class FixtureBuilderTest < Test::Unit::TestCase
   end
 
   def test_generated_columns_are_excluded_for_raw_query_tables
-    create_and_blow_away_old_db
     force_fixture_generation
 
     table_name = GENERATED_COLUMN_RECORDS_TABLE
@@ -156,7 +150,6 @@ class FixtureBuilderTest < Test::Unit::TestCase
   end
 
   def test_raw_query_select_aliases_are_preserved
-    create_and_blow_away_old_db
     force_fixture_generation
 
     table_name = GENERATED_COLUMN_RECORDS_TABLE
@@ -185,7 +178,6 @@ class FixtureBuilderTest < Test::Unit::TestCase
   end
 
   def test_generated_columns_come_from_the_model_table_name
-    create_and_blow_away_old_db
     force_fixture_generation
 
     table_name = RELOCATED_CREATURES_TABLE
@@ -206,7 +198,6 @@ class FixtureBuilderTest < Test::Unit::TestCase
   end
 
   def test_custom_json_attribute_type_round_trips_through_fixtures
-    create_and_blow_away_old_db
     force_fixture_generation
     wizard_data = WizardData.new(
       level: 99,
@@ -380,7 +371,6 @@ class FixtureBuilderTest < Test::Unit::TestCase
   end
 
   def test_rebuilding_due_to_differing_file_hashes
-    create_and_blow_away_old_db
     force_fixture_generation_due_to_differing_file_hashes
 
     FixtureBuilder.configure do |fbuilder|
@@ -395,7 +385,6 @@ class FixtureBuilderTest < Test::Unit::TestCase
   end
 
   def test_rebuilds_when_generated_fixture_hashes_differ
-    create_and_blow_away_old_db
     force_fixture_generation
 
     FixtureBuilder.configure do |fbuilder|
@@ -444,7 +433,6 @@ class FixtureBuilderTest < Test::Unit::TestCase
   end
 
   def test_malformed_manifest_raises_without_running_factory
-    create_and_blow_away_old_db
     manifest_path = File.expand_path("../tmp/fixture_builder.yml", __dir__)
     File.write(manifest_path, "---\ninvalid: [\n")
     factory_called = false
@@ -471,7 +459,6 @@ class FixtureBuilderTest < Test::Unit::TestCase
   end
 
   def test_fresh_manifest_returns_without_acquiring_lock
-    create_and_blow_away_old_db
     force_fixture_generation
     builds = 0
     lock_path = nil
@@ -499,7 +486,6 @@ class FixtureBuilderTest < Test::Unit::TestCase
   end
 
   def test_skips_rebuild_for_valid_empty_fixture_snapshot
-    create_and_blow_away_old_db
     force_fixture_generation
     fixture_snapshot = Dir[test_path("fixtures/*.yml")].to_h do |filename|
       [filename, File.binread(filename)]
@@ -531,7 +517,6 @@ class FixtureBuilderTest < Test::Unit::TestCase
   end
 
   def test_raising_after_build_invalidates_manifest_and_retries
-    create_and_blow_away_old_db
     force_fixture_generation
     builds = 0
     factory = proc do
@@ -549,7 +534,6 @@ class FixtureBuilderTest < Test::Unit::TestCase
     generated_fixture = YAML.safe_load_file(fixture_path)
     generated_fixture["enty"]["retired_column"] = "bogus"
     File.write(fixture_path, generated_fixture.to_yaml)
-    create_and_blow_away_old_db
     FixtureBuilder.instance_variable_set(:@configuration, nil)
 
     assert_raise(RuntimeError) do
@@ -573,7 +557,6 @@ class FixtureBuilderTest < Test::Unit::TestCase
   end
 
   def test_sha256_manifest_digests_when_deprecated_use_sha1_digests_is_enabled
-    create_and_blow_away_old_db
     force_fixture_generation_due_to_differing_file_hashes
 
     source_path = Pathname.new(test_path("fixture_builder_test.rb"))
@@ -613,7 +596,6 @@ class FixtureBuilderTest < Test::Unit::TestCase
   private
 
   def assert_manifest_rebuilds(payload)
-    create_and_blow_away_old_db
     force_fixture_generation
     builds = 0
     factory = proc do
