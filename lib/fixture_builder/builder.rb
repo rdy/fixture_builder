@@ -93,47 +93,41 @@ module FixtureBuilder
     end
 
     def dump_tables
-      default_date_format = Date::DATE_FORMATS[:default]
-      Date::DATE_FORMATS[:default] = Date::DATE_FORMATS[:db]
-      begin
-        fixtures = tables.inject([]) do |files, table_name|
-          table_klass = begin
-            table_name.classify.constantize
-          rescue
-            nil
-          end
-          rows = if table_klass && table_klass < ActiveRecord::Base
-            generated_names = generated_column_names(table_klass.table_name)
-            table_klass.unscoped do
-              table_klass.order(:id).all.collect do |obj|
-                attrs = obj.attributes_before_type_cast.slice(*table_klass.column_names)
-                attrs.each do |attr_name, value|
-                  column_type = table_klass.columns_hash.fetch(attr_name).type
-                  next unless %i[json jsonb].include?(column_type) && value.is_a?(String)
-
-                  attrs[attr_name] = JSON.parse(value)
-                end
-                attrs.except(*generated_names)
-              end
-            end
-          else
-            generated_names = generated_column_names(table_name)
-            ActiveRecord::Base.connection.select_all(format(select_sql,
-              table: ActiveRecord::Base.connection.quote_table_name(table_name)))
-              .map { |row| row.except(*generated_names) }
-          end
-          next files if rows.empty?
-
-          fixture_data = rows.inject({}) do |hash, record|
-            hash.merge(record_name(record, table_name) => record)
-          end
-
-          write_fixture_file fixture_data, table_name
-
-          files + [File.basename(fixture_file(table_name))]
+      fixtures = tables.inject([]) do |files, table_name|
+        table_klass = begin
+          table_name.classify.constantize
+        rescue
+          nil
         end
-      ensure
-        Date::DATE_FORMATS[:default] = default_date_format
+        rows = if table_klass && table_klass < ActiveRecord::Base
+          generated_names = generated_column_names(table_klass.table_name)
+          table_klass.unscoped do
+            table_klass.order(:id).all.collect do |obj|
+              attrs = obj.attributes_before_type_cast.slice(*table_klass.column_names)
+              attrs.each do |attr_name, value|
+                column_type = table_klass.columns_hash.fetch(attr_name).type
+                next unless %i[json jsonb].include?(column_type) && value.is_a?(String)
+
+                attrs[attr_name] = JSON.parse(value)
+              end
+              attrs.except(*generated_names)
+            end
+          end
+        else
+          generated_names = generated_column_names(table_name)
+          ActiveRecord::Base.connection.select_all(format(select_sql,
+            table: ActiveRecord::Base.connection.quote_table_name(table_name)))
+            .map { |row| row.except(*generated_names) }
+        end
+        next files if rows.empty?
+
+        fixture_data = rows.inject({}) do |hash, record|
+          hash.merge(record_name(record, table_name) => record)
+        end
+
+        write_fixture_file fixture_data, table_name
+
+        files + [File.basename(fixture_file(table_name))]
       end
       say "Built #{fixtures.to_sentence}"
     end
