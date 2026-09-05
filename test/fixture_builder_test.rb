@@ -188,21 +188,32 @@ class FixtureBuilderTest < Test::Unit::TestCase
     create_and_blow_away_old_db
     force_fixture_generation
 
-    table_name = RELOCATED_CREATURES_TABLE
+    table_names = [CREATURE_ARCHIVE_TABLE, RELOCATED_CREATURES_TABLE]
+    wizard_data = WizardData.new(level: 99, title: "Lady of the Lake", allies: ["Arthur"])
     FixtureBuilder.configure do |fbuilder|
       fbuilder.files_to_check = []
-      fbuilder.skip_tables = ActiveRecord::Base.connection.tables - [table_name]
-      fbuilder.factory { RelocatedCreature.create!(name: "Nimue") }
+      fbuilder.skip_tables = ActiveRecord::Base.connection.tables - table_names
+      fbuilder.factory do
+        RelocatedCreature.create!(name: "Nimue", wizard_data: wizard_data)
+        ActiveRecord::Base.connection.execute(
+          "INSERT INTO #{RELOCATED_CREATURES_TABLE} (unrelated) VALUES ('Morgana')"
+        )
+      end
     end
 
-    generated_fixture = YAML.safe_load_file(test_path("fixtures/#{table_name}.yml"))
-    # `name` is a plain column on the model's own table, so it must survive even
-    # though the iterated table of the same inferred name generates it.
-    assert_include generated_fixture, "nimue"
-    record = generated_fixture.fetch("nimue")
-    assert_include record, "name"
-    assert_equal "Nimue", record["name"]
-    assert_not_include record, "unrelated"
+    archive_fixture = YAML.safe_load_file(test_path("fixtures/#{CREATURE_ARCHIVE_TABLE}.yml"))
+    assert_equal(
+      {"level" => 99, "title" => "Lady of the Lake", "allies" => ["Arthur"]},
+      archive_fixture.dig("nimue", "wizard_data")
+    )
+
+    # `RelocatedCreature` maps to `creature_archive`, not the conventionally
+    # inferred `relocated_creatures` table. The latter remains on the raw SQL
+    # path, where its database-generated `name` is excluded.
+    relocated_fixture = YAML.safe_load_file(test_path("fixtures/#{RELOCATED_CREATURES_TABLE}.yml"))
+    record = relocated_fixture.fetch("relocated_creatures_001")
+    assert_equal "Morgana", record["unrelated"]
+    assert_not_include record, "name"
   end
 
   def test_custom_json_attribute_type_round_trips_through_fixtures
@@ -251,6 +262,15 @@ class FixtureBuilderTest < Test::Unit::TestCase
   def test_deprecator_has_fixture_builder_metadata
     assert_equal "0.7", FixtureBuilder.deprecator.deprecation_horizon
     assert_equal "FixtureBuilder", FixtureBuilder.deprecator.gem_name
+  end
+
+  def test_ambiguous_model_error_exposes_its_table_name_and_models
+    models = [MagicalCreature, GeneratedCreature]
+    error = FixtureBuilder::AmbiguousModelError.new("creatures", models)
+
+    assert_equal "creatures", error.table_name
+    assert_equal [GeneratedCreature, MagicalCreature], error.models
+    assert_equal "Multiple models match table creatures: GeneratedCreature, MagicalCreature", error.message
   end
 
   def test_sql_setters_reject_positional_table_format_without_warning
