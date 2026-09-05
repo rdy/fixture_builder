@@ -2,6 +2,8 @@
 
 require "rubygems"
 require "bundler/setup"
+require "fileutils"
+require "tmpdir"
 require "test/unit"
 
 class Rails
@@ -22,6 +24,53 @@ require "active_support/concern"
 require "active_record"
 require "active_record/fixtures"
 
+module IsolatedFixtureFilesystem
+  def setup
+    @original_fixtures_path = ActiveRecord::Tasks::DatabaseTasks.fixtures_path
+    @temporary_fixture_root = Dir.mktmpdir("fixture_builder_test")
+    @fixture_directory = File.join(@temporary_fixture_root, "fixtures")
+    FileUtils.mkdir_p(@fixture_directory)
+    FileUtils.cp_r(File.join(test_path("fixtures"), "."), @fixture_directory)
+    ActiveRecord::Tasks::DatabaseTasks.fixtures_path = @fixture_directory
+    reset_fixture_builder_configuration
+    super
+  rescue
+    clean_up_isolated_fixture_filesystem
+    raise
+  end
+
+  def teardown
+    super
+  ensure
+    clean_up_isolated_fixture_filesystem
+  end
+
+  private
+
+  attr_reader :fixture_directory
+
+  def fixture_path(path = "")
+    File.join(fixture_directory, path)
+  end
+
+  def fixture_builder_file
+    File.join(@temporary_fixture_root, "fixture_builder.yml")
+  end
+
+  def reset_fixture_builder_configuration
+    FixtureBuilder.instance_variable_set(:@configuration, nil)
+    FixtureBuilder.configuration.fixture_directory = fixture_directory
+    FixtureBuilder.configuration.fixture_builder_file = fixture_builder_file
+  end
+
+  def clean_up_isolated_fixture_filesystem
+    FixtureBuilder.instance_variable_set(:@configuration, nil)
+  ensure
+    ActiveRecord::Tasks::DatabaseTasks.fixtures_path = @original_fixtures_path if defined?(@original_fixtures_path)
+    FileUtils.remove_entry(@temporary_fixture_root) if defined?(@temporary_fixture_root) && File.exist?(@temporary_fixture_root)
+  end
+end
+
 def create_fixtures(*table_names, &block)
   fixture_set = ActiveRecord::FixtureSet
 
@@ -34,18 +83,16 @@ def create_fixtures(*table_names, &block)
   # rewritten YAML is reparsed; Rails 8.0 and 8.1 use the original load path.
   if fixture_set.respond_to?(:without_parsing_cache)
     fixture_set.without_parsing_cache do
-      fixture_set.create_fixtures(test_path("fixtures"), table_names, {}, &block)
+      fixture_set.create_fixtures(fixture_directory, table_names, {}, &block)
     end
   else
-    fixture_set.create_fixtures(test_path("fixtures"), table_names, {}, &block)
+    fixture_set.create_fixtures(fixture_directory, table_names, {}, &block)
   end
 end
 
 require "sqlite3"
 require "fixture_builder"
-require_relative "support/test_database"
-
-ActiveRecord::Base.configurations = {"test" => TestDatabase::CONFIGURATION}
+ActiveRecord::Base.configurations = {"test" => {"adapter" => "sqlite3", "database" => ":memory:"}}
 ActiveRecord::Base.establish_connection(:test)
 
 require "with_model/test_unit"
@@ -100,34 +147,13 @@ class WizardDataType < ActiveRecord::Type::Json
   end
 end
 
-# standard:disable Rails/ApplicationRecord
-class GeneratedCreature < ActiveRecord::Base
-end
-
-# Its configured table name is intentionally not inferable from this class
-# name, so FixtureBuilder must resolve it from loaded model metadata.
-class RelocatedCreature < ActiveRecord::Base
-  self.table_name = "creature_archive"
-  attribute :wizard_data, WizardDataType.new
-end
-
-class MagicalCreature < ActiveRecord::Base
-  validates_presence_of :name, :species
-  serialize :powers, type: Array
-
-  default_scope -> { where(deleted: false) }
-
-  attribute :virtual, ActiveRecord::Type::Integer.new
-  attribute :wizard_data, WizardDataType.new
-end
-# standard:enable Rails/ApplicationRecord
-
 def force_fixture_generation
-  FileUtils.rm_f(File.expand_path("../tmp/fixture_builder.yml", __dir__))
+  FileUtils.rm_f(fixture_builder_file)
+  reset_fixture_builder_configuration
 end
 
 def force_fixture_generation_due_to_differing_file_hashes
-  path = File.expand_path("../tmp/fixture_builder.yml", __dir__)
-  FileUtils.mkdir_p(File.dirname(path))
-  File.write(path, "blah blah blah")
+  FileUtils.mkdir_p(File.dirname(fixture_builder_file))
+  File.write(fixture_builder_file, "blah blah blah")
+  reset_fixture_builder_configuration
 end

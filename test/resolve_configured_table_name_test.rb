@@ -4,21 +4,32 @@ require_relative "test_helper"
 
 # Regression tests for model resolution by configured table name (#109).
 class ResolveConfiguredTableNameErrorTest < Test::Unit::TestCase
+  prepend IsolatedFixtureFilesystem
+
   def test_ambiguous_model_error_exposes_its_table_name_and_models
-    models = [MagicalCreature, GeneratedCreature]
-    error = FixtureBuilder::AmbiguousModelError.new("creatures", models)
+    magical_creature = named_model("MagicalCreature")
+    generated_creature = named_model("GeneratedCreature")
+    error = FixtureBuilder::AmbiguousModelError.new("creatures", [magical_creature, generated_creature])
 
     assert_equal "creatures", error.table_name
-    assert_equal [GeneratedCreature, MagicalCreature], error.models
+    assert_equal [generated_creature, magical_creature], error.models
     assert_equal(
       "Multiple models match table creatures: GeneratedCreature, MagicalCreature",
       error.message
     )
   end
+
+  private
+
+  def named_model(name)
+    Class.new.tap { |model| model.define_singleton_method(:name) { name } }
+  end
 end
 
 # standard:disable Rails/ApplicationRecord
 class ResolveConfiguredTableNameSerializationTest < Test::Unit::TestCase
+  prepend IsolatedFixtureFilesystem
+
   with_model :FixtureBuilderScopedRelocatedCreature do
     table do |table|
       table.string :name, null: false
@@ -54,21 +65,16 @@ class ResolveConfiguredTableNameSerializationTest < Test::Unit::TestCase
       )
     end
 
-    archive_fixture = YAML.safe_load_file(test_path("fixtures/#{archive_table}.yml"))
+    archive_fixture = YAML.safe_load_file(fixture_path("#{archive_table}.yml"))
     assert_equal(
       {"level" => 99, "title" => "Lady of the Lake", "allies" => ["Arthur"]},
       archive_fixture.dig("nimue", "wizard_data")
     )
 
-    relocated_fixture = YAML.safe_load_file(test_path("fixtures/#{raw_table}.yml"))
+    relocated_fixture = YAML.safe_load_file(fixture_path("#{raw_table}.yml"))
     record = relocated_fixture.fetch("#{raw_table}_001")
     assert_equal "Morgana", record["unrelated"]
     assert_not_include record, "name"
-  end
-
-  def teardown
-    FileUtils.rm_f(test_path("fixtures/#{FixtureBuilderScopedRelocatedCreature.table_name}.yml"))
-    FileUtils.rm_f(test_path("fixtures/#{FixtureBuilderScopedRawCreature.table_name}.yml"))
   end
 
   private
@@ -91,7 +97,7 @@ module ResolveConfiguredTableNameAmbiguityBehavior
     table_name = FixtureBuilderAmbiguousAlpha.table_name
     FixtureBuilderAmbiguousZulu.table_name = table_name
     FixtureBuilderAmbiguousZulu.reset_column_information
-    fixture_path = test_path("fixtures/#{table_name}.yml")
+    fixture_path = fixture_path("#{table_name}.yml")
     original_fixture = "existing fixture bytes\n"
     File.binwrite(fixture_path, original_fixture)
     force_fixture_generation
@@ -111,10 +117,6 @@ module ResolveConfiguredTableNameAmbiguityBehavior
     assert_equal original_fixture, File.binread(fixture_path)
   end
 
-  def teardown
-    FileUtils.rm_f(test_path("fixtures/#{FixtureBuilderAmbiguousAlpha.table_name}.yml"))
-  end
-
   private
 
   def build_fixtures_for(*table_names, &factory)
@@ -127,6 +129,8 @@ module ResolveConfiguredTableNameAmbiguityBehavior
 end
 
 class ResolveConfiguredTableNameAmbiguityAlphaFirstTest < Test::Unit::TestCase
+  prepend IsolatedFixtureFilesystem
+
   include ResolveConfiguredTableNameAmbiguityBehavior
 
   with_model :FixtureBuilderAmbiguousAlpha do
@@ -139,6 +143,8 @@ class ResolveConfiguredTableNameAmbiguityAlphaFirstTest < Test::Unit::TestCase
 end
 
 class ResolveConfiguredTableNameAmbiguityZuluFirstTest < Test::Unit::TestCase
+  prepend IsolatedFixtureFilesystem
+
   include ResolveConfiguredTableNameAmbiguityBehavior
 
   with_model :FixtureBuilderAmbiguousZulu do
@@ -151,6 +157,8 @@ class ResolveConfiguredTableNameAmbiguityZuluFirstTest < Test::Unit::TestCase
 end
 
 class ResolveConfiguredTableNameStiTest < Test::Unit::TestCase
+  prepend IsolatedFixtureFilesystem
+
   with_model :FixtureBuilderStiBase do
     table do |table|
       table.string :name
@@ -172,14 +180,10 @@ class ResolveConfiguredTableNameStiTest < Test::Unit::TestCase
       FixtureBuilderStiSubclass.create!(name: "Subclass creature")
     end
 
-    fixture = YAML.safe_load_file(test_path("fixtures/#{table_name}.yml"))
+    fixture = YAML.safe_load_file(fixture_path("#{table_name}.yml"))
     assert_equal %w[Base\ creature Subclass\ creature], fixture.values.pluck("name")
     assert_nil fixture.values.first["type"]
     assert_equal FixtureBuilderStiSubclass.name, fixture.values.last["type"]
-  end
-
-  def teardown
-    FileUtils.rm_f(test_path("fixtures/#{FixtureBuilderStiBase.table_name}.yml"))
   end
 
   private
@@ -198,10 +202,9 @@ class ResolveConfiguredTableNameStiTest < Test::Unit::TestCase
 end
 
 class ResolveConfiguredTableNameManualBoundaryTest < Test::Unit::TestCase
-  include TestDatabase
+  prepend IsolatedFixtureFilesystem
 
   def test_conventionally_named_autoloaded_model_uses_model_backed_serialization
-    create_and_blow_away_old_db
     table_name = "fixture_builder_autoloaded_models"
 
     with_temporary_table(table_name, columns: {wizard_data: :json}) do
@@ -217,14 +220,13 @@ class ResolveConfiguredTableNameManualBoundaryTest < Test::Unit::TestCase
         assert_equal :json,
           Object.const_get(:FixtureBuilderAutoloadedModel).columns_hash.fetch("wizard_data").type
 
-        fixture = YAML.safe_load_file(test_path("fixtures/#{table_name}.yml"))
+        fixture = YAML.safe_load_file(fixture_path("#{table_name}.yml"))
         assert_equal({"level" => 99}, fixture.values.first["wizard_data"])
       end
     end
   end
 
   def test_concrete_siblings_under_an_abstract_ancestor_remain_ambiguous
-    create_and_blow_away_old_db
     table_name = "fixture_builder_abstract_sibling_models"
 
     with_temporary_table(table_name, columns: {name: :string}) do
@@ -250,7 +252,6 @@ class ResolveConfiguredTableNameManualBoundaryTest < Test::Unit::TestCase
   end
 
   def test_separate_pool_model_with_the_same_table_name_is_ignored
-    create_and_blow_away_old_db
     table_name = "fixture_builder_separate_pool_models"
 
     with_temporary_table(table_name, columns: {name: :string}) do
@@ -262,14 +263,13 @@ class ResolveConfiguredTableNameManualBoundaryTest < Test::Unit::TestCase
           )
         end
 
-        fixture = YAML.safe_load_file(test_path("fixtures/#{table_name}.yml"))
+        fixture = YAML.safe_load_file(fixture_path("#{table_name}.yml"))
         assert_equal "Base pool row", fixture.values.first["name"]
       end
     end
   end
 
   def test_candidate_schema_errors_propagate
-    create_and_blow_away_old_db
     table_name = "fixture_builder_schema_errors"
     error_class = Class.new(StandardError)
 
@@ -290,7 +290,6 @@ class ResolveConfiguredTableNameManualBoundaryTest < Test::Unit::TestCase
   end
 
   def test_id_less_model_table_uses_raw_sql_and_preserves_select_aliases
-    create_and_blow_away_old_db
     table_name = "fixture_builder_id_less_models"
 
     with_temporary_table(table_name, columns: {name: :string}, id: false) do
@@ -306,7 +305,7 @@ class ResolveConfiguredTableNameManualBoundaryTest < Test::Unit::TestCase
         end
       end
 
-      fixture = YAML.safe_load_file(test_path("fixtures/#{table_name}.yml"))
+      fixture = YAML.safe_load_file(fixture_path("#{table_name}.yml"))
       assert_equal "Merlin", fixture.values.first["name"]
       assert_equal "MERLIN", fixture.values.first["shouted_name"]
     end
@@ -332,7 +331,7 @@ class ResolveConfiguredTableNameManualBoundaryTest < Test::Unit::TestCase
     yield connection
   ensure
     connection.drop_table(table_name) if connection&.data_source_exists?(table_name)
-    FileUtils.rm_f(test_path("fixtures/#{table_name}.yml"))
+    FileUtils.rm_f(fixture_path("#{table_name}.yml"))
   end
 
   def with_autoloaded_model(class_name)

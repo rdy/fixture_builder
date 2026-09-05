@@ -6,6 +6,8 @@ require "tmpdir"
 require "timeout"
 
 class ConcurrencyTest < Test::Unit::TestCase
+  prepend IsolatedFixtureFilesystem
+
   ConcurrencyHarness = Data.define(:directory) do
     def source_path = File.join(directory, "source.rb")
     def fixture_directory = File.join(directory, "fixtures")
