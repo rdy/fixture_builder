@@ -16,7 +16,7 @@ class LegacyFixtureModeTest < Test::Unit::TestCase
 
   def test_load_legacy_fixtures
     FixtureBuilder.configure do |fbuilder|
-      fbuilder.legacy_fixtures = Dir[test_path("legacy_fixtures/*.yml"), test_path("other_legacy_fixture_set/*.yml")]
+      fbuilder.legacy_fixtures = Dir[test_path("legacy_fixtures/magical_creatures.yml"), test_path("other_legacy_fixture_set/*.yml")]
       fbuilder.factory do
       end
     end
@@ -35,7 +35,7 @@ class LegacyFixtureModeTest < Test::Unit::TestCase
 
   def test_new_and_old_fixtures
     FixtureBuilder.configure do |fbuilder|
-      fbuilder.legacy_fixtures = Dir[test_path("legacy_fixtures/*.yml"), test_path("other_legacy_fixture_set/*.yml")]
+      fbuilder.legacy_fixtures = Dir[test_path("legacy_fixtures/magical_creatures.yml"), test_path("other_legacy_fixture_set/*.yml")]
       fbuilder.factory do
         MagicalCreature.create name: "Barry", species: "Party Guy"
       end
