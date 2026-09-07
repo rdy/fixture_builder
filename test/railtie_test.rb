@@ -5,6 +5,8 @@ require "tmpdir"
 require File.expand_path(File.join(File.dirname(__FILE__), "test_helper"))
 
 class RailtieTest < Test::Unit::TestCase
+  prepend IsolatedFixtureFilesystem
+
   def test_loads_gem_tasks_when_application_task_shadows_load_path
     Dir.mktmpdir("fixture-builder-railtie") do |application_path|
       tasks_path = File.join(application_path, "lib", "tasks")
