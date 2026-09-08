@@ -3,6 +3,8 @@
 require_relative "test_helper"
 
 class ModelMetadataTest < Test::Unit::TestCase
+  prepend IsolatedFixtureFilesystem
+
   with_model :ModelMetadataCreature do
     table do |table|
       table.string :name, null: false
@@ -23,7 +25,7 @@ class ModelMetadataTest < Test::Unit::TestCase
   def teardown
     FixtureBuilder.instance_variable_set(:@configuration, nil)
     [ModelMetadataCreature, ModelMetadataStiBase].each do |model|
-      FileUtils.rm_f(test_path("fixtures/#{model.table_name}.yml"))
+      FileUtils.rm_f(fixture_path("#{model.table_name}.yml"))
     end
   end
 
@@ -34,7 +36,7 @@ class ModelMetadataTest < Test::Unit::TestCase
 
     generate_for(table_name) { ModelMetadataCreature.create!(name: "$LABEL") }
 
-    fixture = YAML.safe_load_file(test_path("fixtures/#{table_name}.yml"))
+    fixture = YAML.safe_load_file(fixture_path("#{table_name}.yml"))
     assert_equal({"model_class" => ModelMetadataCreature.name}, fixture.fetch("_fixture"))
     records = fixture.except("_fixture")
     assert_equal "$LABEL", records.values.first.fetch("name")
@@ -58,12 +60,12 @@ class ModelMetadataTest < Test::Unit::TestCase
 
     generate_for(table_name) { model.create!(name: "Namespaced creature") }
 
-    fixture_path = test_path("fixtures/#{table_name}.yml")
-    fixture = YAML.safe_load_file(fixture_path)
+    generated_fixture_path = fixture_path("#{table_name}.yml")
+    fixture = YAML.safe_load_file(generated_fixture_path)
     assert_equal "ModelMetadataNamespace::Creature", model.name
     assert_equal table_name, model.table_name
     assert_not_include "/", table_name
-    assert File.exist?(fixture_path)
+    assert File.exist?(generated_fixture_path)
     assert_equal({"model_class" => model.name}, fixture.fetch("_fixture"))
 
     model.delete_all
@@ -72,7 +74,7 @@ class ModelMetadataTest < Test::Unit::TestCase
     assert_nil model.find_by(name: "_fixture")
   ensure
     connection.drop_table(table_name) if connection&.data_source_exists?(table_name)
-    FileUtils.rm_f(test_path("fixtures/#{table_name}.yml"))
+    FileUtils.rm_f(fixture_path("#{table_name}.yml"))
     Object.send(:remove_const, namespace_name) if Object.const_defined?(namespace_name, false)
   end
 
@@ -88,16 +90,16 @@ class ModelMetadataTest < Test::Unit::TestCase
 
       if write_empty_files
         assert_equal({"_fixture" => {"model_class" => ModelMetadataCreature.name}},
-          YAML.safe_load_file(test_path("fixtures/#{model_table}.yml")))
-        assert_equal({}, YAML.safe_load_file(test_path("fixtures/#{raw_table}.yml")))
+          YAML.safe_load_file(fixture_path("#{model_table}.yml")))
+        assert_equal({}, YAML.safe_load_file(fixture_path("#{raw_table}.yml")))
       else
-        assert_false File.exist?(test_path("fixtures/#{model_table}.yml"))
-        assert_false File.exist?(test_path("fixtures/#{raw_table}.yml"))
+        assert_false File.exist?(fixture_path("#{model_table}.yml"))
+        assert_false File.exist?(fixture_path("#{raw_table}.yml"))
       end
     end
   ensure
     ActiveRecord::Base.connection.drop_table(raw_table) if raw_table && ActiveRecord::Base.connection.data_source_exists?(raw_table)
-    FileUtils.rm_f(test_path("fixtures/#{raw_table}.yml")) if raw_table
+    FileUtils.rm_f(fixture_path("#{raw_table}.yml")) if raw_table
   end
 
   def test_reserved_fixture_label_raises_for_model_and_raw_tables
@@ -117,7 +119,7 @@ class ModelMetadataTest < Test::Unit::TestCase
     assert_match(/#{raw_table}.*_fixture/, error.message)
   ensure
     ActiveRecord::Base.connection.drop_table(raw_table) if raw_table && ActiveRecord::Base.connection.data_source_exists?(raw_table)
-    FileUtils.rm_f(test_path("fixtures/#{raw_table}.yml")) if raw_table
+    FileUtils.rm_f(fixture_path("#{raw_table}.yml")) if raw_table
   end
 
   def test_sti_files_describe_the_root_model_and_load_sibling_records
@@ -127,7 +129,7 @@ class ModelMetadataTest < Test::Unit::TestCase
       ModelMetadataStiSibling.create!(name: "Sibling")
     end
 
-    fixture = YAML.safe_load_file(test_path("fixtures/#{table_name}.yml"))
+    fixture = YAML.safe_load_file(fixture_path("#{table_name}.yml"))
     assert_equal ModelMetadataStiBase.name, fixture.dig("_fixture", "model_class")
 
     ModelMetadataStiBase.delete_all

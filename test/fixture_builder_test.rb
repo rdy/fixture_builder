@@ -8,12 +8,41 @@ class FixtureBuilderTestModel
   end
 end
 
-class FixtureBuilderTest < Test::Unit::TestCase
-  include TestDatabase
+module FixtureBuilderRawTableSupport
+  private
 
-  def teardown
-    FixtureBuilder.instance_variable_set(:@configuration, nil)
+  def with_generated_column_table
+    with_temporary_table("generated_column_records") do |table_name|
+      ActiveRecord::Base.connection.change_table(table_name) do |table|
+        table.string :name, null: false
+        table.virtual :name_length, type: :integer, as: "length(name)", stored: true
+      end
+      yield table_name
+    end
   end
+
+  def with_relocated_raw_table
+    with_temporary_table("relocated_creatures") do |table_name|
+      ActiveRecord::Base.connection.change_table(table_name) do |table|
+        table.string :unrelated
+        table.virtual :name, type: :string, as: "upper(unrelated)", stored: true
+      end
+      yield table_name
+    end
+  end
+
+  def with_temporary_table(table_name)
+    connection = ActiveRecord::Base.connection
+    connection.create_table(table_name, force: true)
+    yield table_name
+  ensure
+    connection.drop_table(table_name) if connection&.data_source_exists?(table_name)
+    FileUtils.rm_f(fixture_path("#{table_name}.yml"))
+  end
+end
+
+class FixtureBuilderConfigurationTest < Test::Unit::TestCase
+  prepend IsolatedFixtureFilesystem
 
   def test_name_with
     hash = {"email" => "bob@example.com"}
@@ -24,232 +53,6 @@ class FixtureBuilderTest < Test::Unit::TestCase
     end
     assert_equal "bob_001",
       FixtureBuilder.configuration.send(:record_name, hash, FixtureBuilderTestModel.table_name)
-  end
-
-  def test_ivar_naming
-    create_and_blow_away_old_db
-    force_fixture_generation
-
-    FixtureBuilder.configure do |fbuilder|
-      fbuilder.files_to_check += Dir[test_path("*.rb")]
-      fbuilder.factory do
-        @king_of_gnomes = MagicalCreature.create(name: "robert", species: "gnome")
-      end
-    end
-    generated_fixture = YAML.load(File.open(test_path("fixtures/magical_creatures.yml")))
-    assert_equal({"model_class" => MagicalCreature.name}, generated_fixture.fetch("_fixture"))
-    assert_equal "king_of_gnomes", generated_fixture.except("_fixture").keys.first
-  end
-
-  def test_serialization
-    create_and_blow_away_old_db
-    force_fixture_generation
-
-    FixtureBuilder.configure do |fbuilder|
-      fbuilder.files_to_check += Dir[test_path("*.rb")]
-      fbuilder.factory do
-        @enty = MagicalCreature.create(name: "Enty", species: "ent",
-          powers: %w[shading rooting seeding])
-      end
-    end
-    generated_fixture = YAML.load(File.open(test_path("fixtures/magical_creatures.yml")))
-    assert_equal "---\n- shading\n- rooting\n- seeding\n", generated_fixture["enty"]["powers"]
-  end
-
-  def test_dates_are_iso_formatted_without_mutating_global_date_formats
-    create_and_blow_away_old_db
-    force_fixture_generation
-
-    default_date_format_exists = Date::DATE_FORMATS.key?(:default)
-    default_date_format = Date::DATE_FORMATS[:default]
-    custom_date_format = "%m/%d/%Y"
-    Date::DATE_FORMATS[:default] = custom_date_format
-
-    begin
-      date_format_during_generation = nil
-      FixtureBuilder.configure do |fbuilder|
-        fbuilder.files_to_check += Dir[test_path("*.rb")]
-        fbuilder.name_model_with MagicalCreature do |_record, index|
-          date_format_during_generation = Date::DATE_FORMATS[:default]
-          "creature_#{index}"
-        end
-        fbuilder.factory do
-          MagicalCreature.create!(name: "Ariel", species: "mermaid", born_on: Date.new(1990, 1, 2))
-        end
-      end
-
-      fixture_contents = File.read(test_path("fixtures/magical_creatures.yml"))
-      assert_includes fixture_contents, "born_on: '1990-01-02'\n"
-      assert_equal custom_date_format, date_format_during_generation
-      assert_equal custom_date_format, Date::DATE_FORMATS[:default]
-    ensure
-      if default_date_format_exists
-        Date::DATE_FORMATS[:default] = default_date_format
-      else
-        Date::DATE_FORMATS.delete(:default)
-      end
-    end
-
-    if default_date_format_exists
-      assert_equal default_date_format, Date::DATE_FORMATS[:default]
-    else
-      assert_not_include Date::DATE_FORMATS, :default
-    end
-  end
-
-  def test_do_not_include_virtual_attributes
-    create_and_blow_away_old_db
-    force_fixture_generation
-
-    FixtureBuilder.configure do |fbuilder|
-      fbuilder.files_to_check += Dir[test_path("*.rb")]
-      fbuilder.factory do
-        MagicalCreature.create(name: "Uni", species: "unicorn", powers: %w[rainbows flying])
-      end
-    end
-    generated_fixture = YAML.load(File.open(test_path("fixtures/magical_creatures.yml")))
-    assert !generated_fixture["uni"].key?("virtual")
-  end
-
-  def test_generated_columns_are_excluded_for_model_backed_tables
-    create_and_blow_away_old_db
-    force_fixture_generation
-
-    table_name = GeneratedCreature.table_name
-    FixtureBuilder.configure do |fbuilder|
-      fbuilder.files_to_check = []
-      fbuilder.skip_tables = ActiveRecord::Base.connection.tables - [table_name]
-      fbuilder.factory { GeneratedCreature.create!(name: "Myrddin") }
-    end
-
-    generated_fixture = YAML.safe_load_file(test_path("fixtures/#{table_name}.yml"))
-    assert_equal "Myrddin", generated_fixture.dig("myrddin", "name")
-    assert_not_include generated_fixture.fetch("myrddin"), "name_length"
-
-    GeneratedCreature.delete_all
-    create_fixtures(table_name)
-    assert_equal 7, GeneratedCreature.find_by!(name: "Myrddin").name_length
-  end
-
-  def test_generated_columns_are_excluded_for_raw_query_tables
-    create_and_blow_away_old_db
-    force_fixture_generation
-
-    table_name = GENERATED_COLUMN_RECORDS_TABLE
-    FixtureBuilder.configure do |fbuilder|
-      fbuilder.files_to_check = []
-      fbuilder.skip_tables = ActiveRecord::Base.connection.tables - [table_name]
-      fbuilder.factory do
-        ActiveRecord::Base.connection.execute(
-          "INSERT INTO #{table_name} (name) VALUES ('Merlin')"
-        )
-      end
-    end
-
-    generated_fixture = YAML.safe_load_file(test_path("fixtures/#{table_name}.yml"))
-    assert_equal "Merlin", generated_fixture.dig("merlin", "name")
-    assert_not_include generated_fixture.fetch("merlin"), "name_length"
-
-    ActiveRecord::Base.connection.delete("DELETE FROM #{table_name}")
-    create_fixtures(table_name)
-    assert_equal 6,
-      ActiveRecord::Base.connection.select_value("SELECT name_length FROM #{table_name}")
-  end
-
-  def test_raw_query_select_aliases_are_preserved
-    create_and_blow_away_old_db
-    force_fixture_generation
-
-    table_name = GENERATED_COLUMN_RECORDS_TABLE
-    capture_output do
-      FixtureBuilder.configure do |fbuilder|
-        fbuilder.files_to_check = []
-        fbuilder.skip_tables = ActiveRecord::Base.connection.tables - [table_name]
-        fbuilder.select_sql = "SELECT *, upper(name) AS shouted_name FROM %<table>s"
-        fbuilder.factory do
-          ActiveRecord::Base.connection.execute(
-            "INSERT INTO #{table_name} (name) VALUES ('Merlin')"
-          )
-        end
-      end
-    end
-
-    generated_fixture = YAML.safe_load_file(test_path("fixtures/#{table_name}.yml"))
-    record = generated_fixture.fetch("merlin")
-    assert_equal "Merlin", record["name"]
-    # A custom `select_sql` is executed as written, so its alias reaches the
-    # snapshot. Only the database-generated column, which cannot be inserted,
-    # is removed. The alias is deliberately not a column of the table, so this
-    # fixture is not expected to load.
-    assert_equal "MERLIN", record["shouted_name"]
-    assert_not_include record, "name_length"
-  end
-
-  def test_generated_columns_come_from_the_model_table_name
-    create_and_blow_away_old_db
-    force_fixture_generation
-
-    table_names = [CREATURE_ARCHIVE_TABLE, RELOCATED_CREATURES_TABLE]
-    wizard_data = WizardData.new(level: 99, title: "Lady of the Lake", allies: ["Arthur"])
-    FixtureBuilder.configure do |fbuilder|
-      fbuilder.files_to_check = []
-      fbuilder.skip_tables = ActiveRecord::Base.connection.tables - table_names
-      fbuilder.factory do
-        RelocatedCreature.create!(name: "Nimue", wizard_data: wizard_data)
-        ActiveRecord::Base.connection.execute(
-          "INSERT INTO #{RELOCATED_CREATURES_TABLE} (unrelated) VALUES ('Morgana')"
-        )
-      end
-    end
-
-    archive_fixture = YAML.safe_load_file(test_path("fixtures/#{CREATURE_ARCHIVE_TABLE}.yml"))
-    assert_equal(
-      {"level" => 99, "title" => "Lady of the Lake", "allies" => ["Arthur"]},
-      archive_fixture.dig("nimue", "wizard_data")
-    )
-
-    # `RelocatedCreature` maps to `creature_archive`, not the conventionally
-    # inferred `relocated_creatures` table. The latter remains on the raw SQL
-    # path, where its database-generated `name` is excluded.
-    relocated_fixture = YAML.safe_load_file(test_path("fixtures/#{RELOCATED_CREATURES_TABLE}.yml"))
-    record = relocated_fixture.fetch("relocated_creatures_001")
-    assert_equal "Morgana", record["unrelated"]
-    assert_not_include record, "name"
-  end
-
-  def test_custom_json_attribute_type_round_trips_through_fixtures
-    create_and_blow_away_old_db
-    force_fixture_generation
-    wizard_data = WizardData.new(
-      level: 99,
-      title: "The Grey",
-      allies: %w[Frodo Aragorn]
-    )
-
-    FixtureBuilder.configure do |fbuilder|
-      fbuilder.files_to_check += Dir[test_path("*.rb")]
-      fbuilder.factory do
-        MagicalCreature.create!(
-          name: "Gandalf",
-          species: "wizard",
-          wizard_data: wizard_data
-        )
-      end
-    end
-
-    generated_fixture = YAML.safe_load_file(test_path("fixtures/magical_creatures.yml"))
-    assert_equal(
-      {"level" => 99, "title" => "The Grey", "allies" => %w[Frodo Aragorn]},
-      generated_fixture.dig("gandalf", "wizard_data")
-    )
-
-    MagicalCreature.delete_all
-    ActiveRecord::FixtureSet.create_fixtures(
-      test_path("fixtures"),
-      MagicalCreature.table_name
-    )
-
-    assert_equal wizard_data, MagicalCreature.find_by!(name: "Gandalf").wizard_data
   end
 
   def test_configure
@@ -263,15 +66,6 @@ class FixtureBuilderTest < Test::Unit::TestCase
   def test_deprecator_has_fixture_builder_metadata
     assert_equal "0.7", FixtureBuilder.deprecator.deprecation_horizon
     assert_equal "FixtureBuilder", FixtureBuilder.deprecator.gem_name
-  end
-
-  def test_ambiguous_model_error_exposes_its_table_name_and_models
-    models = [MagicalCreature, GeneratedCreature]
-    error = FixtureBuilder::AmbiguousModelError.new("creatures", models)
-
-    assert_equal "creatures", error.table_name
-    assert_equal [GeneratedCreature, MagicalCreature], error.models
-    assert_equal "Multiple models match table creatures: GeneratedCreature, MagicalCreature", error.message
   end
 
   def test_sql_setters_reject_positional_table_format_without_warning
@@ -397,76 +191,11 @@ class FixtureBuilderTest < Test::Unit::TestCase
   end
 
   def test_fixtures_dir
-    assert_match(%r{test/fixtures$}, FixtureBuilder.configuration.send(:fixtures_dir).to_s)
-  end
-
-  def test_rebuilding_due_to_differing_file_hashes
-    create_and_blow_away_old_db
-    force_fixture_generation_due_to_differing_file_hashes
-
-    FixtureBuilder.configure do |fbuilder|
-      fbuilder.files_to_check += Dir[test_path("*.rb")]
-      fbuilder.factory do
-        @enty = MagicalCreature.create(name: "Enty", species: "ent",
-          powers: %w[shading rooting seeding])
-      end
-    end
-    generated_fixture = YAML.load(File.open(test_path("fixtures/magical_creatures.yml")))
-    assert_equal "---\n- shading\n- rooting\n- seeding\n", generated_fixture["enty"]["powers"]
-  end
-
-  def test_rebuilds_when_generated_fixture_hashes_differ
-    create_and_blow_away_old_db
-    force_fixture_generation
-
-    FixtureBuilder.configure do |fbuilder|
-      fbuilder.files_to_check += Dir[test_path("*.rb")]
-      fbuilder.factory do
-        @enty = MagicalCreature.create(name: "Enty", species: "ent",
-          powers: %w[shading rooting seeding])
-      end
-    end
-
-    FixtureBuilder.instance_variable_set(:@configuration, nil)
-    fixture_path = test_path("fixtures/magical_creatures.yml")
-    generated_fixture = YAML.load_file(fixture_path)
-    generated_fixture["enty"]["retired_column"] = "bogus"
-    File.write(fixture_path, generated_fixture.to_yaml)
-
-    FixtureBuilder.configure do |fbuilder|
-      fbuilder.files_to_check += Dir[test_path("*.rb")]
-      fbuilder.factory do
-        @enty = MagicalCreature.create(name: "Enty", species: "ent",
-          powers: %w[shading rooting seeding])
-      end
-    end
-
-    regenerated_fixture = YAML.load_file(fixture_path)
-    assert_false regenerated_fixture["enty"].key?("retired_column")
-    assert_equal "Enty", regenerated_fixture["enty"]["name"]
-    assert_equal "ent", regenerated_fixture["enty"]["species"]
-  end
-
-  data(
-    "empty document" => "",
-    "false" => "false\n",
-    "scalar" => "scalar\n",
-    "flat manifest" => {"source.rb" => "old digest"}.to_yaml,
-    "unsupported future version" => {"version" => 2, "sources" => {}, "fixtures" => {}}.to_yaml,
-    "invalid current shape" => {
-      "version" => 1,
-      "sources" => {},
-      "fixtures" => {},
-      1 => "invalid"
-    }.to_yaml
-  )
-  def test_rebuilds_parsed_invalid_manifest(payload)
-    assert_manifest_rebuilds(payload)
+    assert_equal fixture_directory, FixtureBuilder.configuration.send(:fixtures_dir).to_s
   end
 
   def test_malformed_manifest_raises_without_running_factory
-    create_and_blow_away_old_db
-    manifest_path = File.expand_path("../tmp/fixture_builder.yml", __dir__)
+    manifest_path = fixture_builder_file
     File.write(manifest_path, "---\ninvalid: [\n")
     factory_called = false
 
@@ -491,8 +220,222 @@ class FixtureBuilderTest < Test::Unit::TestCase
       configuration.lock_path
   end
 
+  def test_skips_rebuild_for_valid_empty_fixture_snapshot
+    force_fixture_generation
+    fixture_snapshot = Dir[fixture_path("*.yml")].to_h do |filename|
+      [filename, File.binread(filename)]
+    end
+    FileUtils.rm_f(fixture_snapshot.keys)
+    builds = 0
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.write_empty_files = false
+      fbuilder.factory { builds += 1 }
+    end
+
+    manifest_path = fixture_builder_file
+    assert_empty YAML.safe_load_file(manifest_path).fetch("fixtures")
+    reset_fixture_builder_configuration
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.write_empty_files = false
+      fbuilder.factory { builds += 1 }
+    end
+
+    assert_equal 1, builds
+  ensure
+    current_fixtures = Dir[fixture_path("*.yml")]
+    FileUtils.rm_f(current_fixtures - fixture_snapshot.keys) if fixture_snapshot
+    fixture_snapshot&.each { |filename, contents| File.binwrite(filename, contents) }
+  end
+end
+
+# standard:disable Rails/ApplicationRecord
+class MagicalCreatureFixtureBuilderTest < Test::Unit::TestCase
+  prepend IsolatedFixtureFilesystem
+
+  with_model :MagicalCreature do
+    table do |table|
+      table.string :name
+      table.string :species
+      table.string :powers
+      table.json :wizard_data
+      table.date :born_on
+      table.boolean :deleted, default: false, null: false
+    end
+
+    model do
+      validates_presence_of :name, :species
+      serialize :powers, type: Array
+      default_scope -> { where(deleted: false) }
+      attribute :virtual, ActiveRecord::Type::Integer.new
+      attribute :wizard_data, WizardDataType.new
+    end
+  end
+
+  def test_ivar_naming
+    force_fixture_generation
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.factory do
+        @king_of_gnomes = MagicalCreature.create(name: "robert", species: "gnome")
+      end
+    end
+    generated_fixture = YAML.load(File.open(fixture_path("#{MagicalCreature.table_name}.yml")))
+    assert_equal "king_of_gnomes", generated_fixture.except("_fixture").keys.first
+  end
+
+  def test_serialization
+    force_fixture_generation
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.factory do
+        @enty = MagicalCreature.create(name: "Enty", species: "ent",
+          powers: %w[shading rooting seeding])
+      end
+    end
+    generated_fixture = YAML.load(File.open(fixture_path("#{MagicalCreature.table_name}.yml")))
+    assert_equal "---\n- shading\n- rooting\n- seeding\n", generated_fixture["enty"]["powers"]
+  end
+
+  def test_dates_are_iso_formatted_without_mutating_global_date_formats
+    force_fixture_generation
+
+    default_date_format_exists = Date::DATE_FORMATS.key?(:default)
+    default_date_format = Date::DATE_FORMATS[:default]
+    custom_date_format = "%m/%d/%Y"
+    Date::DATE_FORMATS[:default] = custom_date_format
+
+    begin
+      date_format_during_generation = nil
+      FixtureBuilder.configure do |fbuilder|
+        fbuilder.files_to_check += Dir[test_path("*.rb")]
+        fbuilder.name_model_with MagicalCreature do |_record, index|
+          date_format_during_generation = Date::DATE_FORMATS[:default]
+          "creature_#{index}"
+        end
+        fbuilder.factory do
+          MagicalCreature.create!(name: "Ariel", species: "mermaid", born_on: Date.new(1990, 1, 2))
+        end
+      end
+
+      fixture_contents = File.read(fixture_path("#{MagicalCreature.table_name}.yml"))
+      assert_includes fixture_contents, "born_on: '1990-01-02'\n"
+      assert_equal custom_date_format, date_format_during_generation
+      assert_equal custom_date_format, Date::DATE_FORMATS[:default]
+    ensure
+      if default_date_format_exists
+        Date::DATE_FORMATS[:default] = default_date_format
+      else
+        Date::DATE_FORMATS.delete(:default)
+      end
+    end
+
+    if default_date_format_exists
+      assert_equal default_date_format, Date::DATE_FORMATS[:default]
+    else
+      assert_not_include Date::DATE_FORMATS, :default
+    end
+  end
+
+  def test_do_not_include_virtual_attributes
+    force_fixture_generation
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.factory do
+        MagicalCreature.create(name: "Uni", species: "unicorn", powers: %w[rainbows flying])
+      end
+    end
+    generated_fixture = YAML.load(File.open(fixture_path("#{MagicalCreature.table_name}.yml")))
+    assert !generated_fixture["uni"].key?("virtual")
+  end
+
+  def test_custom_json_attribute_type_round_trips_through_fixtures
+    force_fixture_generation
+    wizard_data = WizardData.new(
+      level: 99,
+      title: "The Grey",
+      allies: %w[Frodo Aragorn]
+    )
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.factory do
+        MagicalCreature.create!(
+          name: "Gandalf",
+          species: "wizard",
+          wizard_data: wizard_data
+        )
+      end
+    end
+
+    generated_fixture = YAML.safe_load_file(fixture_path("#{MagicalCreature.table_name}.yml"))
+    assert_equal({"model_class" => MagicalCreature.name}, generated_fixture.fetch("_fixture"))
+    assert_equal(
+      {"level" => 99, "title" => "The Grey", "allies" => %w[Frodo Aragorn]},
+      generated_fixture.dig("gandalf", "wizard_data")
+    )
+
+    MagicalCreature.delete_all
+    ActiveRecord::FixtureSet.create_fixtures(
+      fixture_directory,
+      MagicalCreature.table_name
+    )
+
+    assert_equal wizard_data, MagicalCreature.find_by!(name: "Gandalf").wizard_data
+  end
+
+  def test_rebuilding_due_to_differing_file_hashes
+    force_fixture_generation_due_to_differing_file_hashes
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.factory do
+        @enty = MagicalCreature.create(name: "Enty", species: "ent",
+          powers: %w[shading rooting seeding])
+      end
+    end
+    generated_fixture = YAML.load(File.open(fixture_path("#{MagicalCreature.table_name}.yml")))
+    assert_equal "---\n- shading\n- rooting\n- seeding\n", generated_fixture["enty"]["powers"]
+  end
+
+  def test_rebuilds_when_generated_fixture_hashes_differ
+    force_fixture_generation
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.factory do
+        @enty = MagicalCreature.create(name: "Enty", species: "ent",
+          powers: %w[shading rooting seeding])
+      end
+    end
+
+    reset_fixture_builder_configuration
+    fixture_path = fixture_path("#{MagicalCreature.table_name}.yml")
+    generated_fixture = YAML.load_file(fixture_path)
+    generated_fixture["enty"]["retired_column"] = "bogus"
+    File.write(fixture_path, generated_fixture.to_yaml)
+
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.files_to_check += Dir[test_path("*.rb")]
+      fbuilder.factory do
+        @enty = MagicalCreature.create(name: "Enty", species: "ent",
+          powers: %w[shading rooting seeding])
+      end
+    end
+
+    regenerated_fixture = YAML.load_file(fixture_path)
+    assert_false regenerated_fixture["enty"].key?("retired_column")
+    assert_equal "Enty", regenerated_fixture["enty"]["name"]
+    assert_equal "ent", regenerated_fixture["enty"]["species"]
+  end
+
   def test_fresh_manifest_returns_without_acquiring_lock
-    create_and_blow_away_old_db
     force_fixture_generation
     builds = 0
     lock_path = nil
@@ -508,7 +451,7 @@ class FixtureBuilderTest < Test::Unit::TestCase
 
     assert_path_exist lock_path
     FileUtils.rm(lock_path)
-    FixtureBuilder.instance_variable_set(:@configuration, nil)
+    reset_fixture_builder_configuration
 
     FixtureBuilder.configure do |fbuilder|
       fbuilder.files_to_check += Dir[test_path("*.rb")]
@@ -519,40 +462,7 @@ class FixtureBuilderTest < Test::Unit::TestCase
     assert_path_not_exist lock_path
   end
 
-  def test_skips_rebuild_for_valid_empty_fixture_snapshot
-    create_and_blow_away_old_db
-    force_fixture_generation
-    fixture_snapshot = Dir[test_path("fixtures/*.yml")].to_h do |filename|
-      [filename, File.binread(filename)]
-    end
-    FileUtils.rm_f(fixture_snapshot.keys)
-    builds = 0
-
-    FixtureBuilder.configure do |fbuilder|
-      fbuilder.files_to_check += Dir[test_path("*.rb")]
-      fbuilder.write_empty_files = false
-      fbuilder.factory { builds += 1 }
-    end
-
-    manifest_path = File.expand_path("../tmp/fixture_builder.yml", __dir__)
-    assert_empty YAML.safe_load_file(manifest_path).fetch("fixtures")
-    FixtureBuilder.instance_variable_set(:@configuration, nil)
-
-    FixtureBuilder.configure do |fbuilder|
-      fbuilder.files_to_check += Dir[test_path("*.rb")]
-      fbuilder.write_empty_files = false
-      fbuilder.factory { builds += 1 }
-    end
-
-    assert_equal 1, builds
-  ensure
-    current_fixtures = Dir[test_path("fixtures/*.yml")]
-    FileUtils.rm_f(current_fixtures - fixture_snapshot.keys) if fixture_snapshot
-    fixture_snapshot&.each { |filename, contents| File.binwrite(filename, contents) }
-  end
-
   def test_raising_after_build_invalidates_manifest_and_retries
-    create_and_blow_away_old_db
     force_fixture_generation
     builds = 0
     factory = proc do
@@ -565,13 +475,12 @@ class FixtureBuilderTest < Test::Unit::TestCase
       fbuilder.factory(&factory)
     end
 
-    manifest_path = Rails.root.join("tmp/fixture_builder.yml")
-    fixture_path = test_path("fixtures/magical_creatures.yml")
+    manifest_path = fixture_builder_file
+    fixture_path = fixture_path("#{MagicalCreature.table_name}.yml")
     generated_fixture = YAML.safe_load_file(fixture_path)
     generated_fixture["enty"]["retired_column"] = "bogus"
     File.write(fixture_path, generated_fixture.to_yaml)
-    create_and_blow_away_old_db
-    FixtureBuilder.instance_variable_set(:@configuration, nil)
+    reset_fixture_builder_configuration
 
     assert_raise(RuntimeError) do
       FixtureBuilder.configure do |fbuilder|
@@ -583,7 +492,7 @@ class FixtureBuilderTest < Test::Unit::TestCase
 
     assert_false File.exist?(manifest_path)
 
-    FixtureBuilder.instance_variable_set(:@configuration, nil)
+    reset_fixture_builder_configuration
     FixtureBuilder.configure do |fbuilder|
       fbuilder.files_to_check += Dir[test_path("*.rb")]
       fbuilder.factory(&factory)
@@ -594,7 +503,6 @@ class FixtureBuilderTest < Test::Unit::TestCase
   end
 
   def test_sha256_manifest_digests_when_deprecated_use_sha1_digests_is_enabled
-    create_and_blow_away_old_db
     force_fixture_generation_due_to_differing_file_hashes
 
     source_path = Pathname.new(test_path("fixture_builder_test.rb"))
@@ -615,8 +523,8 @@ class FixtureBuilderTest < Test::Unit::TestCase
           powers: %w[shading rooting seeding])
       end
 
-      manifest = YAML.safe_load_file(File.expand_path("../tmp/fixture_builder.yml", __dir__))
-      fixture_path = test_path("fixtures/magical_creatures.yml")
+      manifest = YAML.safe_load_file(fixture_builder_file)
+      fixture_path = fixture_path("#{MagicalCreature.table_name}.yml")
       assert_equal 1, manifest["version"]
       assert_equal Digest::SHA256.file(source_path).hexdigest,
         manifest.fetch("sources").fetch(source_path.to_s)
@@ -631,30 +539,186 @@ class FixtureBuilderTest < Test::Unit::TestCase
     end
   end
 
+  def test_ambiguous_model_error_exposes_its_table_name_and_models
+    generated_creature = Class.new
+    generated_creature.define_singleton_method(:name) { "GeneratedCreature" }
+    models = [MagicalCreature, generated_creature]
+    error = FixtureBuilder::AmbiguousModelError.new("creatures", models)
+
+    assert_equal "creatures", error.table_name
+    assert_equal [generated_creature, MagicalCreature], error.models
+    assert_equal "Multiple models match table creatures: GeneratedCreature, MagicalCreature", error.message
+  end
+
+  data(
+    "empty document" => "",
+    "false" => "false\\n",
+    "scalar" => "scalar\\n",
+    "flat manifest" => {"source.rb" => "old digest"}.to_yaml,
+    "unsupported future version" => {"version" => 2, "sources" => {}, "fixtures" => {}}.to_yaml,
+    "invalid current shape" => {"version" => 1, "sources" => {}, "fixtures" => {}, 1 => "invalid"}.to_yaml
+  )
+  def test_rebuilds_parsed_invalid_manifest(payload)
+    assert_manifest_rebuilds(payload)
+  end
+
   private
 
   def assert_manifest_rebuilds(payload)
-    create_and_blow_away_old_db
     force_fixture_generation
     builds = 0
     factory = proc do
       builds += 1
       @enty = MagicalCreature.create(name: "Enty", species: "ent")
     end
-
     FixtureBuilder.configure do |fbuilder|
       fbuilder.files_to_check += Dir[test_path("*.rb")]
       fbuilder.factory(&factory)
     end
-
-    manifest_path = File.expand_path("../tmp/fixture_builder.yml", __dir__)
-    File.write(manifest_path, payload)
-    FixtureBuilder.instance_variable_set(:@configuration, nil)
+    File.write(fixture_builder_file, payload)
+    reset_fixture_builder_configuration
     FixtureBuilder.configure do |fbuilder|
       fbuilder.files_to_check += Dir[test_path("*.rb")]
       fbuilder.factory(&factory)
     end
-
     assert_equal 2, builds
+  end
+end
+# standard:enable Rails/ApplicationRecord
+
+# standard:disable Rails/ApplicationRecord
+class GeneratedCreatureFixtureBuilderTest < Test::Unit::TestCase
+  prepend IsolatedFixtureFilesystem
+
+  with_model :GeneratedCreature do
+    table do |table|
+      table.string :name, null: false
+      table.virtual :name_length, type: :integer, as: "length(name)", stored: true
+    end
+  end
+
+  def test_generated_columns_are_excluded_for_model_backed_tables
+    force_fixture_generation
+
+    table_name = GeneratedCreature.table_name
+    FixtureBuilder.configure do |fbuilder|
+      fbuilder.files_to_check = []
+      fbuilder.skip_tables = ActiveRecord::Base.connection.tables - [table_name]
+      fbuilder.factory { GeneratedCreature.create!(name: "Myrddin") }
+    end
+
+    generated_fixture = YAML.safe_load_file(fixture_path("#{table_name}.yml"))
+    assert_equal "Myrddin", generated_fixture.dig("myrddin", "name")
+    assert_not_include generated_fixture.fetch("myrddin"), "name_length"
+
+    GeneratedCreature.delete_all
+    create_fixtures(table_name)
+    assert_equal 7, GeneratedCreature.find_by!(name: "Myrddin").name_length
+  end
+end
+# standard:enable Rails/ApplicationRecord
+
+# standard:disable Rails/ApplicationRecord
+class RelocatedCreatureFixtureBuilderTest < Test::Unit::TestCase
+  prepend IsolatedFixtureFilesystem
+  include FixtureBuilderRawTableSupport
+
+  with_model :RelocatedCreature do
+    table do |table|
+      table.string :name, null: false
+      table.json :wizard_data
+    end
+
+    model { attribute :wizard_data, WizardDataType.new }
+  end
+
+  def test_generated_columns_come_from_the_model_table_name
+    with_relocated_raw_table do |raw_table|
+      force_fixture_generation
+
+      table_names = [RelocatedCreature.table_name, raw_table]
+      quoted_raw_table = ActiveRecord::Base.connection.quote_table_name(raw_table)
+      wizard_data = WizardData.new(level: 99, title: "Lady of the Lake", allies: ["Arthur"])
+      FixtureBuilder.configure do |fbuilder|
+        fbuilder.files_to_check = []
+        fbuilder.skip_tables = ActiveRecord::Base.connection.tables - table_names
+        fbuilder.factory do
+          RelocatedCreature.create!(name: "Nimue", wizard_data: wizard_data)
+          ActiveRecord::Base.connection.execute(
+            "INSERT INTO #{quoted_raw_table} (unrelated) VALUES ('Morgana')"
+          )
+        end
+      end
+
+      archive_fixture = YAML.safe_load_file(fixture_path("#{table_names.first}.yml"))
+      assert_equal(
+        {"level" => 99, "title" => "Lady of the Lake", "allies" => ["Arthur"]},
+        archive_fixture.dig("nimue", "wizard_data")
+      )
+
+      # `RelocatedCreature` maps to `creature_archive`, not the conventionally
+      # inferred `relocated_creatures` table. The latter remains on the raw SQL
+      # path, where its database-generated `name` is excluded.
+      relocated_fixture = YAML.safe_load_file(fixture_path("#{table_names.last}.yml"))
+      record = relocated_fixture.fetch("#{raw_table}_001")
+      assert_equal "Morgana", record["unrelated"]
+      assert_not_include record, "name"
+    end
+  end
+end
+# standard:enable Rails/ApplicationRecord
+
+class RawFixtureBuilderTest < Test::Unit::TestCase
+  prepend IsolatedFixtureFilesystem
+  include FixtureBuilderRawTableSupport
+
+  def test_generated_columns_are_excluded_for_raw_query_tables
+    with_generated_column_table do |table_name|
+      force_fixture_generation
+      quoted_table_name = ActiveRecord::Base.connection.quote_table_name(table_name)
+      FixtureBuilder.configure do |fbuilder|
+        fbuilder.files_to_check = []
+        fbuilder.skip_tables = ActiveRecord::Base.connection.tables - [table_name]
+        fbuilder.factory do
+          ActiveRecord::Base.connection.execute(
+            "INSERT INTO #{quoted_table_name} (name) VALUES ('Merlin')"
+          )
+        end
+      end
+
+      generated_fixture = YAML.safe_load_file(fixture_path("#{table_name}.yml"))
+      assert_equal "Merlin", generated_fixture.dig("merlin", "name")
+      assert_not_include generated_fixture.fetch("merlin"), "name_length"
+
+      ActiveRecord::Base.connection.delete("DELETE FROM #{quoted_table_name}")
+      create_fixtures(table_name)
+      assert_equal 6,
+        ActiveRecord::Base.connection.select_value("SELECT name_length FROM #{quoted_table_name}")
+    end
+  end
+
+  def test_raw_query_select_aliases_are_preserved
+    with_generated_column_table do |table_name|
+      force_fixture_generation
+      quoted_table_name = ActiveRecord::Base.connection.quote_table_name(table_name)
+      capture_output do
+        FixtureBuilder.configure do |fbuilder|
+          fbuilder.files_to_check = []
+          fbuilder.skip_tables = ActiveRecord::Base.connection.tables - [table_name]
+          fbuilder.select_sql = "SELECT *, upper(name) AS shouted_name FROM %<table>s"
+          fbuilder.factory do
+            ActiveRecord::Base.connection.execute(
+              "INSERT INTO #{quoted_table_name} (name) VALUES ('Merlin')"
+            )
+          end
+        end
+      end
+
+      generated_fixture = YAML.safe_load_file(fixture_path("#{table_name}.yml"))
+      record = generated_fixture.fetch("merlin")
+      assert_equal "Merlin", record["name"]
+      assert_equal "MERLIN", record["shouted_name"]
+      assert_not_include record, "name_length"
+    end
   end
 end

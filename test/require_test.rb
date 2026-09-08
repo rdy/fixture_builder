@@ -4,6 +4,8 @@ require File.expand_path(File.join(File.dirname(__FILE__), "test_helper"))
 require "open3"
 
 class RequireTest < Test::Unit::TestCase
+  prepend IsolatedFixtureFilesystem
+
   def test_plain_require_without_framework_preloads
     output, error, status = Open3.capture3(
       RbConfig.ruby,
