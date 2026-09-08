@@ -2,7 +2,7 @@
 plan: Maintainer backlog triage
 status: active
 created: "2026-08-29"
-last_updated: "2026-10-12"
+last_updated: "2026-10-13"
 owner: Grant Hutchins
 scope: Open issues and pull requests in rdy/fixture_builder
 ---
@@ -60,6 +60,12 @@ deterministic fallback for keyless tables.
 Coordinate the query design with the eventual Arel work in #94, but do not make
 issue #72 wait for 0.7 if it can be fixed independently.
 
+**Status:** [#116](https://github.com/rdy/fixture_builder/pull/116) closed #72
+for tables with a declared primary key: model-backed rows are ordered by that
+key, including custom and composite keys, and explicit fixture names follow it.
+Tables without a usable primary key take the raw SQL path, which has no
+deterministic ordering yet.
+
 #### [#70: Zero-argument `name` raises `ArgumentError`](https://github.com/rdy/fixture_builder/issues/70)
 
 Fix the collision between FixtureBuilder's `name(custom_name, *objects)` DSL and
@@ -69,6 +75,14 @@ zero-argument call should delegate to `super`, while `name(:label, record)` must
 remain supported.
 
 #### [#49: Namespaced models and JSONB columns](https://github.com/rdy/fixture_builder/issues/49)
+
+**Revised:** [#116](https://github.com/rdy/fixture_builder/pull/116) closed
+#49 without a mapping configuration. FixtureBuilder now finds each table's
+loaded model by its configured table name (#109), so namespaced and otherwise
+non-inferable models serialize through their model and their JSON columns keep
+their types. The original decision below is kept for history; revisit an
+explicit mapping only if a model must be paired with a table it does not
+declare, or if nested fixture output becomes a requirement.
 
 Keep the underlying problem, but re-scope it around explicit table mapping. The
 current table-name-to-constant inference still fails for namespaced or otherwise
@@ -201,25 +215,35 @@ reviving the proposed public hook surface.
 
 ## Current replacement stack
 
-### Model-aware fixture generation (PR 1)
+### Model-aware fixture generation (PR 1, [#116](https://github.com/rdy/fixture_builder/pull/116))
 
-In progress from current `master`: use loaded Active Record models by their
-configured table names, emit Rails-native `_fixture.model_class` metadata for
-model-backed YAML, and preserve raw SQL fallback for tables without an eligible
-model. The implementation keeps Rails fixture loading authoritative: explicit
+Merged: loaded Active Record models are resolved by
+their configured table names, model-backed YAML emits Rails-native
+`_fixture.model_class` metadata, and tables without an eligible model retain the
+raw SQL fallback. Rails fixture loading remains authoritative: explicit
 fixture-class mappings take precedence and unresolved metadata may use
-conventional inference. Its regression coverage is organized by final ownership in
+conventional inference. Models defined inside migration classes are ignored
+(#129), and explicit fixture names follow each model's primary key. Its
+regression coverage is organized by final ownership in
 `test/fixture_builder_test.rb`, `test/configuration_test.rb`,
 `test/configuration/manifest_test.rb`, `test/fixtures_path_test.rb`,
 `test/builder/`, and `test/model_resolver/`.
 
-### Ephemeral test-model migration (PR 2)
+### Ephemeral test-model migration (PR 2, [#117](https://github.com/rdy/fixture_builder/pull/117))
 
-Planned as the dependent follow-up: migrate remaining ordinary fixture-builder
-tests to models whose schemas are declared by their owning test cases. Retain
-manual setup only for raw SQL, constant/autoload timing, alternate pools, schema
-errors, namespaced table-name boundaries, and STI. Keep the metadata-aware and
-metadata-free legacy fixture inputs as separate compatibility paths.
+The dependent follow-up: the remaining ordinary fixture-builder
+tests now use models whose schemas are declared by their owning test cases, and
+the shared persistent test database helper is removed. The former shared
+`MagicalCreature` schema now belongs inline to the owning integration case in
+`test/fixture_builder_test.rb`, manifest lifecycle case in
+`test/configuration/manifest_test.rb`, and serialization case in
+`test/builder/serialization_test.rb`; `test/configuration_test.rb` remains the
+model-free configuration contract case. Fixed-name `with_table` schemas remain
+only for tables that deliberately have no model (raw SQL, the conventional-name
+decoy, and legacy fixture input), the autoloaded-constant case, and the
+namespaced table name; models that map to an existing table use
+`table(false)` from with_model 2.5. Metadata-aware and metadata-free
+legacy fixture inputs remain separate compatibility paths.
 
 ## Execution order
 
@@ -273,6 +297,9 @@ Completed by [#108](https://github.com/rdy/fixture_builder/pull/108).
       success or failure.
 - [ ] **Tests:** Exercise the Rake task with distinct source and test databases
       and cover both successful generation and an exception from the factory.
+      Since #122, `spec:fixture_builder:clean` also switches to the test
+      database while it loads the configuration, so cover `clean` alone and
+      `rebuild` as well as `build`.
 - [ ] **Completion gate:** The regression demonstrates the leaked connection
       before the fix; then the focused tests and `bin/rake` pass without
       modifying Rails' standard `db:fixtures:load` task.
@@ -316,7 +343,12 @@ trigger one quiet migration rebuild, and the manifest version remains 1.
 
 Marker ownership intentionally does not protect manual edits made to marked
 files after adoption, and historical unmarked orphans still require manual
-inspection and removal. #119 remains open pending that boundary.
+inspection and removal. #119 is closed. Two follow-ups extended the same
+ownership rule: [#122](https://github.com/rdy/fixture_builder/pull/122) makes
+the clean task honor the configured `fixture_directory` and
+`fixture_builder_file`, and
+[#125](https://github.com/rdy/fixture_builder/pull/125) limits the fixture-output digest to marked files, so hand-written YAML no longer
+forces a rebuild.
 
 #### Validate and release
 
@@ -348,29 +380,34 @@ inspection and removal. #119 remains open pending that boundary.
 
 #### Support custom and absent primary keys for #72
 
-- [ ] **Implementation:** Replace the unconditional `order(:id)` behavior in
-      `lib/fixture_builder/builder.rb` with declared-primary-key ordering and a
-      deterministic fallback for keyless tables.
-- [ ] **Tests:** Extend `test/builder/raw_sql_test.rb` and its owning
-      ephemeral schemas with custom-primary-key and keyless-table cases. Prove
-      two generations are stable.
+- [x] **Implementation:** Replace the unconditional `order(:id)` behavior in
+      `lib/fixture_builder/builder.rb` with declared-primary-key ordering
+      (#116).
+- [ ] **Implementation:** Add a deterministic fallback for keyless tables,
+      which take the raw SQL path without an `ORDER BY`.
+- [x] **Tests:** Cover custom, composite, and string primary keys
+      (`test/builder/primary_key_naming_test.rb`) and an id-less model table
+      falling back to raw SQL (`test/model_resolver/selection_test.rb`).
+- [ ] **Tests:** Prove two generations of a keyless table are stable.
 - [ ] **Completion gate:** The regression fails before the implementation, then
       the focused test file and `bin/rake` pass without weakening deterministic
       output.
 
 #### Add explicit table mapping for #49
 
-**Status:** Implementation is in flight as open
+**Status:** Superseded by model resolution.
 [#116](https://github.com/rdy/fixture_builder/pull/116) (model-aware fixture
-generation) → [#117](https://github.com/rdy/fixture_builder/pull/117) (test
-model ownership). The earlier draft stack
+generation) merged and closed #49 and #109;
+[#117](https://github.com/rdy/fixture_builder/pull/117) (test model ownership)
+follows it. The earlier draft stack
 [#112](https://github.com/rdy/fixture_builder/pull/112) (with_model test
 harness) → [#113](https://github.com/rdy/fixture_builder/pull/113)
 (model-aware configured tables) →
 [#115](https://github.com/rdy/fixture_builder/pull/115) (ephemeral models) is
 closed as superseded by #116 and #117. Issue #109 records resolving Active
 Record models by their configured table name, the core requirement behind this
-work.
+work. The checklist below is the original mapping design and is not planned
+unless the revisit conditions in the #49 decision arise.
 
 - [ ] **Implementation:** Introduce a named configuration value object under
       `lib/fixture_builder/`, expose it through
@@ -433,8 +470,8 @@ The plan is complete only when:
   protected after marker adoption.
 - [ ] Fixture generation supports custom and absent primary keys
       deterministically.
-- [ ] Namespaced and otherwise non-inferable models have an explicit, validated
-      mapping path.
+- [x] Namespaced and otherwise non-inferable models resolve to their loaded
+      models by configured table name (#116).
 - [ ] 0.6 has been released before any 0.7 API removal.
 - [ ] The #94 feedback period has been honored and its 0.7 decision has been
       implemented and documented.
@@ -456,8 +493,8 @@ The plan is complete only when:
   made to marked files after adoption.
 - **Manifest invalidation:** Keep manifest version `1` for the 0.6 generated-
   column behavior change; it had not shipped, so no format migration was needed.
-  Existing fixture-output hashing continues to validate generated snapshots. Do
-  not add a live-schema fingerprint.
+  Hashing of marked fixture files (#125) continues to validate generated
+  snapshots. Do not add a live-schema fingerprint.
 - **Public API timing:** A deprecation in 0.6 remains functional throughout 0.6
   and may only be removed in 0.7.
 - **Nested fixture paths:** Directory creation, cleanup, and manifest validation

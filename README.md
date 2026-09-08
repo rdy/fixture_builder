@@ -285,10 +285,12 @@ including models whose configured table name differs from the conventional name.
 A model is eligible when it is concrete, named, uses the exported table and the
 same connection pool, and has usable primary keys. Models defined inside a
 migration class, such as the throwaway models data migrations use, are ignored.
-Independent eligible models that share a table raise `AmbiguousModelError`. It writes Rails-native metadata
-for every model-backed file, so Rails can select the model without a separate
-fixture-class mapping. This also supports conventionally named models,
-namespaced models, and the root model for an STI table:
+Independent eligible models that share a table raise `AmbiguousModelError`.
+
+FixtureBuilder writes Rails-native metadata for every model-backed file, so
+Rails can select the model without a separate fixture-class mapping. This also
+supports conventionally named models, namespaced models, and the root model for
+an STI table:
 
 ```yaml
 _fixture:
@@ -363,9 +365,7 @@ Tips
 * When a table is deleted or skipped, the next rebuild removes its old marked fixture.
   Unmarked stale files are preserved for manual inspection.
 * As you build more advanced fixture creation logic for your app's domain and try to DRY it up, you'll probably
-  end up having an easier time if:
-  1. You don't use any namespaced models
-  1. You keep your factory names consistent and exactly matching your model names
+  have an easier time if you keep your factory names consistent and exactly matching your model names.
 * Modify `bin/setup` to run fixture builder and load your dev database:
       ```ruby
       puts "\n== Building fixtures =="

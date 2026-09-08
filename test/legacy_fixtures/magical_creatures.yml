@@ -1,3 +1,6 @@
+_fixture:
+  model_class: MagicalCreature
+
 bigfoot:
   name: bigfoot
 
