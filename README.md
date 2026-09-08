@@ -107,17 +107,23 @@ When the block finishes, it dumps the state of the database into fixtures, like 
 
 ```yaml
 # users.yml
+_fixture:
+  model_class: User
 david:
   created_at: 2010-09-18 17:21:23.926511 Z
   unique_name: david
   id: 1
 
 # products.yml
+_fixture:
+  model_class: Product
 i_pod:
   name: iPod
   id: 1
 
 # purchases.yml
+_fixture:
+  model_class: Purchase
 purchase_001:
   product_id: 1
   user_id: 1
@@ -155,12 +161,14 @@ There are also additional configuration options that can be changed to override 
 
 By default these are set as:
 
-* files_to_check: %w{ db/schema.rb }
-* fixture_builder_file: Rails.root.join("tmp/fixture_builder.yml")
-* record_name_fields: %w{ unique_name display_name name title username login }
-* skip_tables: %w{ schema_migrations ar_internal_metadata }
-* select_sql: SELECT * FROM %<table>s
-* delete_sql: DELETE FROM %<table>s
+```ruby
+files_to_check: %w{ db/schema.rb }
+fixture_builder_file: Rails.root.join("tmp/fixture_builder.yml")
+record_name_fields: %w{ unique_name display_name name title username login }
+skip_tables: %w{ schema_migrations ar_internal_metadata }
+select_sql: "SELECT * FROM %<table>s"
+delete_sql: "DELETE FROM %<table>s"
+```
 
 FixtureBuilder omits database-generated columns from snapshots because Rails
 fixtures cannot write them.
@@ -192,6 +200,46 @@ across threads and processes, so only one worker rebuilds a stale snapshot while
 others wait and reuse the completed result. A failed build leaves no valid manifest,
 so a waiter or later run retries. Only the manifest is replaced atomically after
 successful fixture generation; the fixture set itself is not published atomically.
+
+### Model-aware fixture files
+
+FixtureBuilder discovers a loaded Active Record model for each exported table,
+including models whose configured table name differs from the conventional name.
+A model is eligible when it is concrete, named, uses the exported table and the
+same connection pool, and has usable primary keys. Independent eligible models
+that share a table raise `AmbiguousModelError`. It writes Rails-native metadata
+for every model-backed file, so Rails can select the model without a separate
+fixture-class mapping. This also supports conventionally named models,
+namespaced models, and the root model for an STI table:
+
+```yaml
+_fixture:
+  model_class: Catalog::Creature
+forest_dweller:
+  name: Forest dweller
+```
+
+`_fixture` and `model_class` are String YAML keys, and the value is the model's
+String name. Rails treats `_fixture` as metadata rather than a record. A model
+name still resolves normally when Rails loads the fixture; FixtureBuilder does
+not eager-load the application to discover models.
+
+Rails honors an explicit `set_fixture_class` or `class_names` mapping before
+file metadata. If the metadata's class name cannot be resolved, Rails can fall
+through to its conventional fixture-name inference. Files for raw SQL fallback
+tables and tables with ineligible models omit the metadata; that omission does
+not disable Rails' conventional inference, so a raw file whose basename matches
+an unrelated model can still be loaded as that model.
+
+Model-aware loading uses Rails' native fixture transformations. For example,
+Rails can fill timestamps and primary keys, convert enums, honor STI and
+associations, select the model's connection pool, and interpolate `$LABEL` in
+string values. This is not a byte-for-byte promise for every special fixture
+value.
+
+Tools that consume generated YAML as plain records must exclude the `_fixture`
+metadata row. FixtureBuilder reserves `_fixture` as a record label and rejects
+it during generation.
 
 Sequence Collisions
 ===================
@@ -241,13 +289,14 @@ Tips
   1. You don't use any namespaced models
   1. You keep your factory names consistent and exactly matching your model names
 * Modify `bin/setup` to run fixture builder and load your dev database:
-      ```ruby
-      puts "\n== Building fixtures =="
-      system! 'bin/rails spec:fixture_builder:rebuild'
-        
-      puts "\n== Loading fixtures into dev database =="
-      system! 'bin/rails db:fixtures:load'
-      ```
+
+  ```ruby
+  puts "\n== Building fixtures =="
+  system! 'bin/rails spec:fixture_builder:rebuild'
+
+  puts "\n== Loading fixtures into dev database =="
+  system! 'bin/rails db:fixtures:load'
+  ```
 
 More Complete Config Example
 ============================
