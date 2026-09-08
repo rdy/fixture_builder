@@ -3,7 +3,7 @@
 require_relative "../test_helper"
 
 module ModelResolverTests
-  class ErrorTest < Test::Unit::TestCase
+  class AmbiguousModelErrorTest < Test::Unit::TestCase
     prepend IsolatedFixtureFilesystem
 
     def test_ambiguous_model_error_exposes_its_table_name_and_models

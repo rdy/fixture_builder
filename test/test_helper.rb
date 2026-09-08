@@ -91,7 +91,6 @@ end
 
 require "sqlite3"
 require "fixture_builder"
-require_relative "support/test_database"
 ActiveRecord::Base.configurations = {"test" => {"adapter" => "sqlite3", "database" => ":memory:"}}
 ActiveRecord::Base.establish_connection(:test)
 
@@ -147,37 +146,13 @@ class WizardDataType < ActiveRecord::Type::Json
   end
 end
 
-# standard:disable Rails/ApplicationRecord
-class RelocatedCreature < ActiveRecord::Base
-  self.table_name = "creature_archive"
-end
-
-class MagicalCreature < ActiveRecord::Base
-  validates_presence_of :name, :species
-  serialize :powers, type: Array
-  default_scope -> { where(deleted: false) }
-  attribute :virtual, ActiveRecord::Type::Integer.new
-  attribute :wizard_data, WizardDataType.new
-end
-# standard:enable Rails/ApplicationRecord
-
 def force_fixture_generation
-  FileUtils.rm_f(current_fixture_builder_file)
-  reset_fixture_builder_configuration if isolated_fixture_filesystem?
+  FileUtils.rm_f(fixture_builder_file)
+  reset_fixture_builder_configuration
 end
 
 def force_fixture_generation_due_to_differing_file_hashes
-  FileUtils.mkdir_p(File.dirname(current_fixture_builder_file))
-  File.write(current_fixture_builder_file, "blah blah blah")
-  reset_fixture_builder_configuration if isolated_fixture_filesystem?
-end
-
-def current_fixture_builder_file
-  return fixture_builder_file if isolated_fixture_filesystem?
-
-  File.expand_path("../tmp/fixture_builder.yml", __dir__)
-end
-
-def isolated_fixture_filesystem?
-  respond_to?(:fixture_builder_file, true)
+  FileUtils.mkdir_p(File.dirname(fixture_builder_file))
+  File.write(fixture_builder_file, "blah blah blah")
+  reset_fixture_builder_configuration
 end

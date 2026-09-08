@@ -191,25 +191,31 @@ reviving the proposed public hook surface.
 
 ## Current replacement stack
 
-### Model-aware fixture generation (PR 1)
+### Model-aware fixture generation (PR 1, [#116](https://github.com/rdy/fixture_builder/pull/116))
 
-In progress from current `master`: use loaded Active Record models by their
-configured table names, emit Rails-native `_fixture.model_class` metadata for
-model-backed YAML, and preserve raw SQL fallback for tables without an eligible
-model. The implementation keeps Rails fixture loading authoritative: explicit
+Completed from current `master`: loaded Active Record models are resolved by
+their configured table names, model-backed YAML emits Rails-native
+`_fixture.model_class` metadata, and tables without an eligible model retain the
+raw SQL fallback. Rails fixture loading remains authoritative: explicit
 fixture-class mappings take precedence and unresolved metadata may use
 conventional inference. Its regression coverage is organized by final ownership in
 `test/fixture_builder_test.rb`, `test/configuration_test.rb`,
 `test/configuration/manifest_test.rb`, `test/fixtures_path_test.rb`,
 `test/builder/`, and `test/model_resolver/`.
 
-### Ephemeral test-model migration (PR 2)
+### Ephemeral test-model migration (PR 2, [#117](https://github.com/rdy/fixture_builder/pull/117))
 
-Planned as the dependent follow-up: migrate remaining ordinary fixture-builder
-tests to models whose schemas are declared by their owning test cases. Retain
-manual setup only for raw SQL, constant/autoload timing, alternate pools, schema
-errors, namespaced table-name boundaries, and STI. Keep the metadata-aware and
-metadata-free legacy fixture inputs as separate compatibility paths.
+Completed as the dependent follow-up: the remaining ordinary fixture-builder
+tests now use models whose schemas are declared by their owning test cases, and
+the shared persistent test database helper is removed. The former shared
+`MagicalCreature` schema now belongs inline to the owning integration case in
+`test/fixture_builder_test.rb`, manifest lifecycle case in
+`test/configuration/manifest_test.rb`, and serialization case in
+`test/builder/serialization_test.rb`; `test/configuration_test.rb` remains the
+model-free configuration contract case. Manual setup remains only at the
+intentional raw SQL, constant/autoload timing, alternate pool, schema-error,
+namespaced table-name, and STI boundaries. Metadata-aware and metadata-free
+legacy fixture inputs remain separate compatibility paths.
 
 ## Execution order
 
