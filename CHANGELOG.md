@@ -49,6 +49,13 @@
 
 ### Fixed
 
+- Discover loaded Active Record models by their configured table names and write
+  Rails-native `_fixture.model_class` metadata for model-backed fixture files,
+  including namespaced models and STI roots. Raw SQL fallback and ineligible-model
+  files omit that metadata; unresolved metadata can fall through to Rails'
+  conventional inference, while unrelated loaded models for one table still raise
+  deterministically
+  ([#109](https://github.com/rdy/fixture_builder/issues/109)).
 - Omit database-generated columns from generated fixtures so Rails can load
   snapshots from tables that have them
   ([#100](https://github.com/rdy/fixture_builder/issues/100)).

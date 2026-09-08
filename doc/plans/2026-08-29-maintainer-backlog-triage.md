@@ -2,7 +2,7 @@
 plan: Maintainer backlog triage
 status: active
 created: "2026-08-29"
-last_updated: "2026-09-03"
+last_updated: "2026-09-07"
 owner: Grant Hutchins
 scope: Open issues and pull requests in rdy/fixture_builder
 ---
@@ -189,6 +189,28 @@ the direction of #94.
 The model-independent extraction idea may inform #49, but it does not justify
 reviving the proposed public hook surface.
 
+## Current replacement stack
+
+### Model-aware fixture generation (PR 1)
+
+In progress from current `master`: use loaded Active Record models by their
+configured table names, emit Rails-native `_fixture.model_class` metadata for
+model-backed YAML, and preserve raw SQL fallback for tables without an eligible
+model. The implementation keeps Rails fixture loading authoritative: explicit
+fixture-class mappings take precedence and unresolved metadata may use
+conventional inference. Its regression coverage is organized by final ownership in
+`test/fixture_builder_test.rb`, `test/configuration_test.rb`,
+`test/configuration/manifest_test.rb`, `test/fixtures_path_test.rb`,
+`test/builder/`, and `test/model_resolver/`.
+
+### Ephemeral test-model migration (PR 2)
+
+Planned as the dependent follow-up: migrate remaining ordinary fixture-builder
+tests to models whose schemas are declared by their owning test cases. Retain
+manual setup only for raw SQL, constant/autoload timing, alternate pools, schema
+errors, namespaced table-name boundaries, and STI. Keep the metadata-aware and
+metadata-free legacy fixture inputs as separate compatibility paths.
+
 ## Execution order
 
 ### Phase 1: Backlog cleanup
@@ -215,7 +237,7 @@ reviving the proposed public hook surface.
 - **Implementation:** Remove the `Date::DATE_FORMATS` mutation from
   `lib/fixture_builder/builder.rb`.
 - **Tests:** Add focused ISO-date and global-state coverage to
-  `test/fixture_builder_test.rb`.
+  `test/builder/serialization_test.rb`.
 - **Completion gate:** The focused test file and `bin/rake` pass without a date
   deprecation warning, then #69 closes through the implementation pull request.
 
@@ -304,8 +326,9 @@ PostgreSQL reproduction.
 - **Implementation:** Replace the unconditional `order(:id)` behavior in
   `lib/fixture_builder/builder.rb` with declared-primary-key ordering and a
   deterministic fallback for keyless tables.
-- **Tests:** Extend `test/fixture_builder_test.rb` and its schema/models with
-  custom-primary-key and keyless-table cases. Prove two generations are stable.
+- **Tests:** Extend `test/builder/raw_sql_test.rb` and its owning ephemeral
+  schemas with custom-primary-key and keyless-table cases. Prove two generations
+  are stable.
 - **Completion gate:** The regression fails before the implementation, then the
   focused test file and `bin/rake` pass without weakening deterministic output.
 
@@ -315,9 +338,10 @@ PostgreSQL reproduction.
   `lib/fixture_builder/`, expose it through
   `lib/fixture_builder/configuration.rb`, and update builder path handling and
   manifest traversal.
-- **Tests:** Extend `test/fixture_builder_test.rb` with a namespaced model, JSON
-  data, nested fixture output, recursive cleanup, and manifest invalidation.
-  Add isolated value-object tests if its validation has meaningful branches.
+- **Tests:** Extend `test/builder/metadata_test.rb` and
+  `test/model_resolver/table_name_test.rb` with a namespaced model, JSON data,
+  nested fixture output, recursive cleanup, and manifest invalidation. Add
+  isolated value-object tests if its validation has meaningful branches.
 - **Completion gate:** The end-to-end regression fails first; then focused tests
   and `bin/rake` pass. Update `README.md` and `CHANGELOG.md` in the same pull
   request.
@@ -332,8 +356,8 @@ primitive makes a small dependency stack clearer.
 - [ ] If no required use case remains, replace their implementation with Arel
       in `lib/fixture_builder/builder.rb` and remove the setters from
       `lib/fixture_builder/configuration.rb`.
-- [ ] Update `test/fixture_builder_test.rb`, `README.md`, and `CHANGELOG.md` for
-      every removed public API.
+- [ ] Update `test/configuration_test.rb`, `test/builder/`, `README.md`, and
+      `CHANGELOG.md` for every removed public API.
 - [ ] Run `bin/rake`, the stable Ruby/Rails matrix, and the required GitHub
       Actions workflow before releasing 0.7.
 

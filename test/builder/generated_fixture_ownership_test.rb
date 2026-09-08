@@ -14,8 +14,11 @@ module BuilderTests
 
     def setup
       @directory = Dir.mktmpdir("fixture-builder-ownership")
-      ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: ":memory:")
-      ActiveRecord::Base.connection.create_table(:ownership_records) { |table| table.string :name }
+      # with_table captures this adapter when the suite loads, so reset the
+      # in-memory database without replacing its connection pool.
+      connection = ActiveRecord::Base.connection
+      connection.tables.each { |table| connection.drop_table(table) }
+      connection.create_table(:ownership_records) { |table| table.string :name }
       OwnershipRecord.reset_column_information
     end
 

@@ -1,0 +1,151 @@
+# frozen_string_literal: false
+
+require_relative "../test_helper"
+
+module ModelMetadataNamespace
+end
+
+module BuilderTests
+  class MetadataTest < Test::Unit::TestCase
+    prepend IsolatedFixtureFilesystem
+
+    with_model :Creature do
+      table do |table|
+        table.string :name, null: false
+      end
+    end
+
+    with_model :MythicalCreature do
+      table do |table|
+        table.string :name, null: false
+        table.string :type
+      end
+    end
+
+    with_model :Dragon, superclass: :MythicalCreature do
+      table(false)
+    end
+
+    with_table :model_metadata_namespaced_creatures do |table|
+      table.string :name, null: false
+    end
+
+    with_model :"ModelMetadataNamespace::Chimera" do
+      table
+
+      model do
+        self.table_name = "model_metadata_namespaced_creatures"
+      end
+    end
+
+    with_table :model_metadata_raw_tables do |table|
+      table.string :name
+    end
+
+    def test_model_backed_files_describe_their_model_and_load_without_a_class_map
+      table_name = Creature.table_name
+      assert_equal "Creature", Creature.name
+      assert_not_equal Creature.name, table_name.classify
+
+      generate_for(table_name) { Creature.create!(name: "$LABEL") }
+
+      fixture = YAML.safe_load_file(fixture_path("#{table_name}.yml"))
+      assert_equal({"model_class" => Creature.name}, fixture.fetch("_fixture"))
+      records = fixture.except("_fixture")
+      assert_equal "$LABEL", records.values.first.fetch("name")
+
+      Creature.delete_all
+      create_fixtures(table_name)
+      assert_equal records.keys.first, Creature.find_by!(name: records.keys.first).name
+      assert_nil Creature.find_by(name: "_fixture")
+    end
+
+    def test_namespaced_model_round_trips_through_generated_native_metadata
+      table_name = "model_metadata_namespaced_creatures"
+      model = ModelMetadataNamespace::Chimera
+
+      generate_for(table_name) { model.create!(name: "Namespaced creature") }
+
+      generated_fixture_path = fixture_path("#{table_name}.yml")
+      fixture = YAML.safe_load_file(generated_fixture_path)
+      assert_equal "ModelMetadataNamespace::Chimera", model.name
+      assert_equal table_name, model.table_name
+      assert_not_include "/", table_name
+      assert File.exist?(generated_fixture_path)
+      assert_equal({"model_class" => model.name}, fixture.fetch("_fixture"))
+
+      model.delete_all
+      create_fixtures(table_name)
+      assert_equal "Namespaced creature", model.find_by!(name: "Namespaced creature").name
+      assert_nil model.find_by(name: "_fixture")
+    end
+
+    def test_empty_model_and_raw_tables_follow_write_empty_files
+      model_table = Creature.table_name
+      raw_table = "model_metadata_raw_tables"
+
+      [true, false].each do |write_empty_files|
+        generate_for(model_table, raw_table) do |fbuilder|
+          fbuilder.write_empty_files = write_empty_files
+        end
+
+        if write_empty_files
+          assert_equal({"_fixture" => {"model_class" => Creature.name}},
+            YAML.safe_load_file(fixture_path("#{model_table}.yml")))
+          assert_equal({}, YAML.safe_load_file(fixture_path("#{raw_table}.yml")))
+        else
+          assert_false File.exist?(fixture_path("#{model_table}.yml"))
+          assert_false File.exist?(fixture_path("#{raw_table}.yml"))
+        end
+      end
+    end
+
+    def test_reserved_fixture_label_raises_for_model_and_raw_tables
+      model_table = Creature.table_name
+      error = assert_raise(ArgumentError) do
+        generate_for(model_table) { Creature.create!(name: "_fixture") }
+      end
+      assert_match(/#{model_table}.*_fixture/, error.message)
+
+      raw_table = "model_metadata_raw_tables"
+      error = assert_raise(ArgumentError) do
+        generate_for(raw_table) do
+          ActiveRecord::Base.connection.execute("INSERT INTO #{raw_table} (name) VALUES ('_fixture')")
+        end
+      end
+      assert_match(/#{raw_table}.*_fixture/, error.message)
+    end
+
+    def test_sti_files_describe_the_root_model_and_load_sibling_records
+      table_name = MythicalCreature.table_name
+      generate_for(table_name) do
+        MythicalCreature.create!(name: "Base")
+        Dragon.create!(name: "Sibling")
+      end
+
+      fixture = YAML.safe_load_file(fixture_path("#{table_name}.yml"))
+      assert_equal MythicalCreature.name, fixture.dig("_fixture", "model_class")
+
+      MythicalCreature.delete_all
+      create_fixtures(table_name)
+      assert_equal [MythicalCreature.name, Dragon.name],
+        MythicalCreature.order(:name).map { |record| record.class.name }
+    end
+
+    private
+
+    def generate_for(*table_names, &factory)
+      force_fixture_generation
+      FixtureBuilder.configure do |fbuilder|
+        fbuilder.files_to_check = []
+        fbuilder.skip_tables = ActiveRecord::Base.connection.tables - table_names
+        if factory.arity == 1
+          factory.call(fbuilder)
+          fbuilder.factory {}
+        else
+          fbuilder.factory(&factory)
+        end
+      end
+    end
+  end
+end
