@@ -18,6 +18,9 @@
 - Coordinate fixture generation across threads and processes so concurrent
   workers reuse one complete snapshot instead of interleaving their writes
   ([#81](https://github.com/rdy/fixture_builder/pull/81)).
+- Mark generated fixture files so rebuilds and explicit cleanup remove obsolete
+  FixtureBuilder output without deleting unmarked fixtures, and warn before
+  replacing an unmarked fixture at a current output path.
 - Remove compatibility code for unsupported Rails fixture APIs and rely on the
   current `ActiveRecord::FixtureSet` and database-task fixture path APIs.
 - Require Hashdiff 1.0 or newer and remove compatibility with its pre-1.0

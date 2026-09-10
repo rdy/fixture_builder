@@ -51,8 +51,14 @@ module FixtureBuilder
         locked_file_hashes = @file_hashes
         next unless rebuild_fixtures?
 
+        legacy_marker_migration = legacy_marker_manifest_on_disk?
         invalidate_config
-        @builder = Builder.new(self, @namer, block).generate!
+        @builder = Builder.new(
+          self,
+          @namer,
+          block,
+          legacy_marker_migration: legacy_marker_migration
+        ).generate!
         @file_hashes = locked_file_hashes
         write_config
       end
@@ -191,11 +197,24 @@ module FixtureBuilder
     end
 
     def current_manifest?(manifest)
-      expected_keys = %w[fixtures sources version]
-      manifest.is_a?(Hash) && manifest.keys.length == expected_keys.length &&
-        expected_keys.all? { |key| manifest.key?(key) } &&
+      required_keys = %w[fixtures sources version]
+      allowed_keys = required_keys + ["generated_file_marker"]
+      manifest.is_a?(Hash) &&
+        (manifest.keys - allowed_keys).empty? &&
+        required_keys.all? { |key| manifest.key?(key) } &&
+        (!manifest.key?("generated_file_marker") || manifest["generated_file_marker"] == true) &&
         manifest["version"] == MANIFEST_VERSION &&
         digest_hash?(manifest["sources"]) && digest_hash?(manifest["fixtures"])
+    end
+
+    def legacy_marker_manifest?(manifest)
+      current_manifest?(manifest) && !manifest.key?("generated_file_marker")
+    end
+
+    def legacy_marker_manifest_on_disk?
+      legacy_marker_manifest?(read_config)
+    rescue Errno::ENOENT
+      false
     end
 
     def digest_hash?(hash)
@@ -212,7 +231,8 @@ module FixtureBuilder
       manifest = {
         "version" => MANIFEST_VERSION,
         "sources" => @file_hashes,
-        "fixtures" => fixture_hashes
+        "fixtures" => fixture_hashes,
+        "generated_file_marker" => true
       }
       destination = fixture_builder_file.to_s
       directory = File.dirname(destination)
@@ -241,6 +261,11 @@ module FixtureBuilder
         if announce
           puts "=> rebuilding fixtures because fixture_builder config file #{fixture_builder_file} has an invalid current manifest shape"
         end
+        return true
+      end
+
+      if legacy_marker_manifest?(manifest)
+        puts "=> rebuilding fixtures to mark generated fixture files" if announce
         return true
       end
 

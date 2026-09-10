@@ -5,10 +5,11 @@ module FixtureBuilder
     include Delegations::Namer
     include Delegations::Configuration
 
-    def initialize(configuration, namer, builder_block)
+    def initialize(configuration, namer, builder_block, legacy_marker_migration: false)
       @configuration = configuration
       @namer = namer
       @builder_block = builder_block
+      @legacy_marker_migration = legacy_marker_migration
     end
 
     def generate!
@@ -57,14 +58,13 @@ module FixtureBuilder
     end
 
     def write_data_to_files
-      delete_yml_files
-      dump_empty_fixtures_for_all_tables if write_empty_files
-      dump_tables
+      emitted_files = write_empty_files ? dump_empty_fixtures_for_all_tables : []
+      emitted_files |= dump_tables
+      remove_stale_fixture_files(emitted_files)
     end
 
     def clean_out_old_data
       delete_tables
-      delete_yml_files
     end
 
     def delete_tables
@@ -76,10 +76,6 @@ module FixtureBuilder
       end
     end
 
-    def delete_yml_files
-      FileUtils.rm_f(tables.map { |t| fixture_file(t) })
-    end
-
     # standard:disable Rails/Output
     def say(*messages)
       puts messages.map { |message| "=> #{message}" }
@@ -87,8 +83,9 @@ module FixtureBuilder
     # standard:enable Rails/Output
 
     def dump_empty_fixtures_for_all_tables
-      tables.each do |table_name|
+      tables.map do |table_name|
         write_fixture_file({}, table_name)
+        File.basename(fixture_file(table_name))
       end
     end
 
@@ -130,6 +127,7 @@ module FixtureBuilder
         files + [File.basename(fixture_file(table_name))]
       end
       say "Built #{fixtures.to_sentence}"
+      fixtures
     end
 
     # A database-generated (virtual/stored generated) column cannot be
@@ -145,7 +143,16 @@ module FixtureBuilder
     end
 
     def write_fixture_file(fixture_data, table_name)
-      File.write(fixture_file(table_name), fixture_data.to_yaml)
+      FixtureFile.new(fixture_file(table_name)).write(
+        fixture_data.to_yaml,
+        suppress_unmarked_warning: @legacy_marker_migration
+      )
+    end
+
+    def remove_stale_fixture_files(emitted_files)
+      Dir.glob(fixtures_dir("*.yml")).each do |path|
+        FixtureFile.new(path).delete_if_generated unless emitted_files.include?(File.basename(path))
+      end
     end
 
     def fixture_file(table_name)
