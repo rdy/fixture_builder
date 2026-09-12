@@ -19,8 +19,9 @@ module ConfigurationTests
       @source = File.join(@directory, "source.rb")
       FileUtils.mkdir_p(@fixtures)
       File.write(@source, "source\n")
-      ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: ":memory:")
-      ActiveRecord::Base.connection.create_table(:marker_migration_records) { |table| table.string :name }
+      connection = ActiveRecord::Base.connection
+      connection.tables.each { |table| connection.drop_table(table) }
+      connection.create_table(:marker_migration_records) { |table| table.string :name }
       MarkerMigrationRecord.reset_column_information
     end
 

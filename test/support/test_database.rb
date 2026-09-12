@@ -38,8 +38,10 @@ module TestDatabase
 
   def create_and_blow_away_old_db
     ActiveRecord::Base.configurations = {"test" => CONFIGURATION}
-    ActiveRecord::Base.establish_connection(:test)
     connection = ActiveRecord::Base.connection
+    connection.tables.each { |table| connection.drop_table(table) }
+    connection.schema_cache.clear!
+    ActiveRecord::FixtureSet.reset_cache
     connection.create_table(:magical_creatures, force: true) do |t|
       t.column :name, :string
       t.column :species, :string
@@ -73,7 +75,6 @@ module TestDatabase
       t.string :name, null: false
     end
 
-    GeneratedCreature.reset_column_information
     RelocatedCreature.reset_column_information
   end
 
