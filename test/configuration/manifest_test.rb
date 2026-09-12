@@ -5,12 +5,25 @@ require_relative "../test_helper"
 # standard:disable Rails/ApplicationRecord
 module ConfigurationTests
   class ManifestTest < Test::Unit::TestCase
-    include TestDatabase
     prepend IsolatedFixtureFilesystem
 
-    def setup
-      super
-      create_and_blow_away_old_db
+    with_model :MagicalCreature do
+      table do |table|
+        table.string :name
+        table.string :species
+        table.string :powers
+        table.json :wizard_data
+        table.date :born_on
+        table.boolean :deleted, default: false, null: false
+      end
+
+      model do
+        validates_presence_of :name, :species
+        serialize :powers, type: Array
+        default_scope -> { where(deleted: false) }
+        attribute :virtual, ActiveRecord::Type::Integer.new
+        attribute :wizard_data, WizardDataType.new
+      end
     end
 
     def test_malformed_manifest_raises_without_running_factory
