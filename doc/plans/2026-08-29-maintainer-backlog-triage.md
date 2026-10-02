@@ -2,7 +2,7 @@
 plan: Maintainer backlog triage
 status: active
 created: "2026-08-29"
-last_updated: "2026-09-03"
+last_updated: "2026-10-02"
 owner: Grant Hutchins
 scope: Open issues and pull requests in rdy/fixture_builder
 ---
@@ -68,12 +68,6 @@ failures. Begin with a regression test that exercises the assertion path. A
 zero-argument call should delegate to `super`, while `name(:label, record)` must
 remain supported.
 
-#### [#69: Active Support date-format deprecation](https://github.com/rdy/fixture_builder/issues/69)
-
-Remove the process-global `Date::DATE_FORMATS` mutation. Test that generated
-fixture dates remain in ISO format and that fixture generation does not mutate
-global date-format configuration. This is small enough to consider before 0.6.
-
 #### [#49: Namespaced models and JSONB columns](https://github.com/rdy/fixture_builder/issues/49)
 
 Keep the underlying problem, but re-scope it around explicit table mapping. The
@@ -95,6 +89,14 @@ connection active while it builds fixtures without leaving later tasks attached
 to the test database.
 
 ### Implemented issues
+
+#### [#69: Active Support date-format deprecation](https://github.com/rdy/fixture_builder/issues/69)
+
+Implemented by [#108](https://github.com/rdy/fixture_builder/pull/108) before
+0.6. Active Record's uncast date attributes already produce ISO-formatted
+fixture values, so the temporary process-global `Date::DATE_FORMATS[:default]`
+override was removed. Regression coverage observes the date format during
+generation and confirms generated dates remain ISO formatted.
 
 #### [#100: Exclude generated columns from fixture snapshots](https://github.com/rdy/fixture_builder/issues/100)
 
@@ -212,12 +214,15 @@ reviving the proposed public hook surface.
 
 #### Remove global date formatting for #69
 
-- **Implementation:** Remove the `Date::DATE_FORMATS` mutation from
+Completed by [#108](https://github.com/rdy/fixture_builder/pull/108).
+
+- [x] **Implementation:** Remove the `Date::DATE_FORMATS` mutation from
   `lib/fixture_builder/builder.rb`.
-- **Tests:** Add focused ISO-date and global-state coverage to
+- [x] **Tests:** Add focused ISO-date and global-state coverage to
   `test/fixture_builder_test.rb`.
-- **Completion gate:** The focused test file and `bin/rake` pass without a date
-  deprecation warning, then #69 closes through the implementation pull request.
+- [x] **Completion gate:** The focused test file and `bin/rake` pass without a
+  date deprecation warning, then #69 closes through the implementation pull
+  request.
 
 #### Resolve the `name` collision for #70
 
@@ -260,21 +265,32 @@ Completed by [#105](https://github.com/rdy/fixture_builder/pull/105).
 
 #### Clean up dropped-table fixtures conservatively
 
-- **Implementation:** Consider removal only for a fixture path recorded in the
-  prior manifest. Remove it only when the current file digest still matches the
-  prior recorded digest. Preserve modified fixtures and every unrecorded YAML
-  file.
-- **Tests:** Cover an unchanged recorded fixture for a dropped table, a modified
-  recorded fixture, and an unrecorded fixture. The first is removed; the latter
-  two survive the rebuild.
-- **Completion gate:** The regression proves stale generated output is removed
-  without deleting user-authored or modified content, then the focused tests and
-  `bin/rake` pass.
+Completed by [#120](https://github.com/rdy/fixture_builder/pull/120), tracked
+by #119. This materially revises the original design: instead of comparing the
+current file digest against the prior manifest's recorded digest, generated
+fixtures carry an exact first-line ownership comment, and rebuilds and the
+explicit clean task remove only stale marked files. Unmarked files survive;
+generation warns before overwriting one. Recognized pre-marker v1 manifests
+trigger one quiet migration rebuild, and the manifest version remains 1.
+
+- [x] **Implementation:** Mark generated fixture files with a first-line
+  ownership comment. Rebuilds and the explicit clean task remove stale marked
+  files and preserve unmarked files. Migrate recognized pre-marker v1 manifests
+  with one quiet rebuild, recording marker adoption only after generation and
+  callbacks succeed.
+- [x] **Tests:** Cover stale marked fixtures (removed), unmarked fixtures
+  (preserved), and the pre-marker manifest migration rebuild.
+- [x] **Completion gate:** Stale generated output is removed without deleting
+  unmarked content, then the focused tests and `bin/rake` pass.
+
+Marker ownership intentionally does not protect manual edits made to marked
+files after adoption, and historical unmarked orphans still require manual
+inspection and removal. #119 remains open pending that boundary.
 
 #### Validate and release
 
 - [x] Land #100 before cutting 0.6 (#105).
-- [ ] Land the conservative dropped-table cleanup before cutting 0.6.
+- [x] Land the conservative dropped-table cleanup before cutting 0.6 (#120).
 - [ ] Run `bin/rake` with the default dependency set.
 - [ ] Run the stable combinations documented by `.github/workflows/ci.yml`,
       using `RAILS_VERSION` with `bundle update --all` and `bin/rake` as
@@ -310,6 +326,16 @@ PostgreSQL reproduction.
   focused test file and `bin/rake` pass without weakening deterministic output.
 
 #### Add explicit table mapping for #49
+
+**Status:** Implementation is in flight as two pull-request stacks: drafts
+[#112](https://github.com/rdy/fixture_builder/pull/112) (with_model test
+harness) → [#113](https://github.com/rdy/fixture_builder/pull/113) (model-aware
+configured tables) → [#115](https://github.com/rdy/fixture_builder/pull/115)
+(ephemeral models), and open
+[#116](https://github.com/rdy/fixture_builder/pull/116) (model-aware fixture
+generation) → [#117](https://github.com/rdy/fixture_builder/pull/117) (test
+model ownership). Issue #109 records resolving Active Record models by their
+configured table name, the core requirement behind this work.
 
 - **Implementation:** Introduce a named configuration value object under
   `lib/fixture_builder/`, expose it through
@@ -358,12 +384,16 @@ implementation roadmap or authorize deletion of this document.
 
 The plan is complete only when:
 
-- Issues #69, #70, and #99 have landed with their focused regressions.
+- [x] #69 landed with its focused regression (#108).
+- [ ] #70 lands with its focused regression.
+- [ ] #99 lands with its focused regression.
 - [x] #100 landed with focused regressions: generated columns are excluded from
   both fixture extraction paths before 0.6, its resulting fixtures load
   successfully, and no manifest-version migration was needed.
-- Dropped-table cleanup removes only unchanged files recorded by the prior
-  manifest and preserves modified or unrecorded YAML.
+- [x] Dropped-table cleanup landed (#120) with marker-based ownership: stale
+  marked files are removed, unmarked YAML is preserved, and the manifest
+  remains version 1. Manual edits to marked files are intentionally not
+  protected after marker adoption.
 - Fixture generation supports custom and absent primary keys deterministically.
 - Namespaced and otherwise non-inferable models have an explicit, validated
   mapping path.
@@ -383,8 +413,9 @@ The plan is complete only when:
   adapter-specific behavior.
 - **Silent data loss:** Filtering columns or selecting rows must be explicit and
   tested. Fixture snapshots must not silently omit writable data. Remove a stale
-  fixture only when the prior manifest recorded it and its current digest still
-  matches; preserve modified and unrecorded YAML.
+  fixture only when it carries the generated-ownership marker; preserve
+  unmarked YAML. Marker ownership intentionally does not protect manual edits
+  made to marked files after adoption.
 - **Manifest invalidation:** Keep manifest version `1` for the 0.6 generated-
   column behavior change; it had not shipped, so no format migration was needed.
   Existing fixture-output hashing continues to validate generated snapshots. Do
