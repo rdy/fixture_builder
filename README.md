@@ -5,8 +5,9 @@ FixtureBuilder
 
 > [!NOTE]
 > As of August 2026, FixtureBuilder is maintained by
-> [Grant Hutchins](https://github.com/nertzy). Grant is preparing a 0.6 release
-> with some long-needed fixes, coming shortly. Follow the
+> [Grant Hutchins](https://github.com/nertzy) and
+> [Chad Woolley](https://github.com/thewoolleyman). A 0.6 release with some
+> long-needed fixes is coming shortly. Follow the
 > [maintainer backlog triage plan](doc/plans/2026-08-29-maintainer-backlog-triage.md)
 > for current priorities and progress. Contributions are encouraged and warmly
 > welcomed.
@@ -391,7 +392,5 @@ class CreateFixtures
 
 Copyright (c) 2009 Ryan Dy & David Stevenson, released under the MIT license
 
-Currently maintained by [Grant Hutchins](https://github.com/nertzy).
-
-Previously maintained by [Chad Woolley](mailto:thewoolleyman@gmail.com). Thank
-you, Chad, for your stewardship of FixtureBuilder over the years.
+Currently maintained by [Grant Hutchins](https://github.com/nertzy) and
+[Chad Woolley](https://github.com/thewoolleyman).
