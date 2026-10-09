@@ -38,7 +38,39 @@ module FixtureBuilder
       end
     end
 
+    # @api private Requires the given configuration files, which configure the
+    # shared configuration, storing their factories instead of running them.
+    # Factory calls build immediately again once the files are loaded, even if
+    # one raises. Used by FixtureBuilder.load_configuration.
+    def load_factories(files)
+      @factories = []
+      files.each { |file| require(file) }
+      @loaded_factories = @factories
+    ensure
+      @factories = nil
+    end
+
+    # @api private Builds fixtures from the factories loaded by load_factories,
+    # running each through the usual up-to-date check.
+    def build
+      factories = @loaded_factories.to_a
+      @loaded_factories = nil
+      factories.each { |block| factory(&block) }
+    end
+
+    # @api private Removes the manifest and the marked YAML files in both the
+    # configured fixture directory and the Rails fixture directory. Unmarked
+    # files are kept.
+    def clean
+      FileUtils.rm_f(fixture_builder_file)
+      directories = [FixturesPath.absolute_rails_fixtures_path, fixture_directory]
+      patterns = directories.map { |directory| File.join(File.expand_path(directory.to_s), "*.yml") }.uniq
+      Dir.glob(patterns).each { |path| FixtureFile.new(path).delete_if_generated }
+    end
+
     def factory(&block)
+      return @factories << block if @factories
+
       self.files_to_check += @legacy_fixtures.to_a
       return unless rebuild_fixtures_preflight?
 

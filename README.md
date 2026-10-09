@@ -70,10 +70,15 @@ Usage
 =====
 
 * When running tests/specs, fixtures will build/rebuild automatically as needed
-* `rake spec:fixture_builder:build` to force a build of fixtures
+* `rake spec:fixture_builder:build` to build fixtures if they are stale
 * `rake spec:fixture_builder:clean` to delete marked FixtureBuilder output
 * `rake spec:fixture_builder:rebuild` to force a rebuild of fixtures (just a clean + build)
 * `rake db:fixtures:load` to load built fixtures into your development environment (this is a standard Rails rake task)
+
+The `spec:fixture_builder` tasks boot the Rails environment, connect to the test
+database, and load every `{spec,test}/**/fixture_builder.rb` once. Everything in
+those files except the factories runs when the task starts, including during
+`clean`; `build` then runs the factories.
 
 Configuration Example
 =====================
@@ -256,12 +261,12 @@ development, run:
 RAILS_ENV=development FIXTURES_PATH=test/generated_fixtures bin/rails db:fixtures:load
 ```
 
-Use `spec/generated_fixtures` instead for the RSpec example. An explicit
-`fixture_directory` override also does not retarget `spec:fixture_builder:clean`;
-set `FIXTURES_PATH` consistently when cleaning or rebuilding. Explicit clean removes the
-manifest, so the next build has no manifest-based migration suppression. Marker
-migration does not remove historical unmarked duplicates; inspect or move those
-manually.
+Use `spec/generated_fixtures` instead for the RSpec example.
+`spec:fixture_builder:clean` removes marked YAML from both the configured
+`fixture_directory` and the Rails fixture directory, and deletes the configured
+`fixture_builder_file`, so the next build has no manifest-based migration
+suppression. Marker migration does not remove historical unmarked duplicates;
+inspect or move those manually.
 
 Sequence Collisions
 ===================
