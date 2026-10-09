@@ -41,6 +41,7 @@ class RailtieTest < Test::Unit::TestCase
       assert_equal %w[
         spec:fixture_builder:build
         spec:fixture_builder:clean
+        spec:fixture_builder:load_configuration
         spec:fixture_builder:rebuild
       ], task_names.grep(/^spec:fixture_builder:/).sort
     end

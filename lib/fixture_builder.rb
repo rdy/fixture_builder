@@ -31,6 +31,19 @@ module FixtureBuilder
     def configure(options = {})
       yield configuration(options)
     end
+
+    # @api private Connects to the test database and requires the application's
+    # configuration files, storing their factories instead of running them. The
+    # spec:fixture_builder rake tasks call this once per process, so clean and
+    # build share one configuration in any order without evaluating the files
+    # twice.
+    def load_configuration
+      ActiveRecord::Base.establish_connection(:test)
+      configuration.load_factories(configuration_files)
+    end
+
+    # @api private The configuration files load_configuration requires.
+    def configuration_files = Dir.glob(::Rails.root.join("{spec,test}/**/fixture_builder.rb").to_s)
   end
 
   require "fixture_builder/railtie" if defined?(::Rails::Railtie)

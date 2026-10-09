@@ -55,6 +55,11 @@
 - Generate model-backed fixture rows in primary-key order so fixture output
   remains stable ([#50](https://github.com/rdy/fixture_builder/pull/50); thanks
   [jackkinsella](https://github.com/jackkinsella)).
+- Make `spec:fixture_builder:clean` honor the configured `fixture_directory`
+  and `fixture_builder_file`. Clean now boots the Rails environment, connects
+  to the test database, and loads the application's `fixture_builder.rb` files
+  without running their factories
+  ([#122](https://github.com/rdy/fixture_builder/pull/122)).
 - Load FixtureBuilder's Rake tasks from the gem so an application's own
   `tasks/fixture_builder.rake` file cannot shadow them
   ([#73](https://github.com/rdy/fixture_builder/pull/73)).
