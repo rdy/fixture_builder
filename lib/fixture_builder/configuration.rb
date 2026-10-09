@@ -207,9 +207,12 @@ module FixtureBuilder
       end
     end
 
+    # Digests only marked YAML, so hand-written fixtures beside generated ones
+    # do not make the output look stale.
     def fixture_hashes
       pattern = File.join(fixture_directory.to_s, "*.yml")
-      Dir.glob(pattern).sort.each_with_object({}) do |filename, hash|
+      generated = Dir.glob(pattern).sort.select { |filename| FixtureFile.new(filename).generated? }
+      generated.each_with_object({}) do |filename, hash|
         hash[File.basename(filename)] = file_digest(filename)
       end
     end
