@@ -45,6 +45,11 @@ require "sqlite3"
 require "fixture_builder"
 require_relative "support/test_database"
 
+ActiveRecord::Base.configurations = {"test" => TestDatabase::CONFIGURATION}
+ActiveRecord::Base.establish_connection(:test)
+
+require "with_model/test_unit"
+
 class WizardData
   attr_reader :level, :title, :allies
 
