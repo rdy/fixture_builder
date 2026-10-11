@@ -3,10 +3,8 @@
 require_relative "../test_helper"
 require "tmpdir"
 
-# standard:disable Rails/ApplicationRecord
 class OwnershipRecord < ActiveRecord::Base
 end
-# standard:enable Rails/ApplicationRecord
 
 module BuilderTests
   class GeneratedFixtureOwnershipTest < Test::Unit::TestCase

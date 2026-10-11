@@ -3,10 +3,8 @@
 require_relative "../test_helper"
 require "tmpdir"
 
-# standard:disable Rails/ApplicationRecord
 class MarkerMigrationRecord < ActiveRecord::Base
 end
-# standard:enable Rails/ApplicationRecord
 
 module ConfigurationTests
   class GeneratedFileMarkerTest < Test::Unit::TestCase
