@@ -95,7 +95,6 @@ class WizardDataType < ActiveRecord::Type::Json
   end
 end
 
-# standard:disable Rails/ApplicationRecord
 class GeneratedCreature < ActiveRecord::Base
 end
 
@@ -115,7 +114,6 @@ class MagicalCreature < ActiveRecord::Base
   attribute :virtual, ActiveRecord::Type::Integer.new
   attribute :wizard_data, WizardDataType.new
 end
-# standard:enable Rails/ApplicationRecord
 
 def force_fixture_generation
   FileUtils.rm_f(File.expand_path("../tmp/fixture_builder.yml", __dir__))

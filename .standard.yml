@@ -4,3 +4,7 @@ plugins:
   - standard-performance
   - standard-rails:
       target_rails_version: 8.0
+
+ignore:
+  - "**/*":
+      - Rails/ApplicationRecord
