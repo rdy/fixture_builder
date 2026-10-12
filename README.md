@@ -190,7 +190,9 @@ supported throughout 0.6. The setters are planned for removal in 0.7 unless user
 
 FixtureBuilder rebuilds fixtures when configured source files or generated fixture
 YAML differ from the manifest. This detects stale ignored artifacts left by CI cache
-restores, local branch changes, or pulls. Invalid or older manifest formats rebuild
+restores, local branch changes, or pulls. Unmarked YAML in the fixture directory is
+not part of that check, so adding or editing a hand-written fixture there does not
+force a rebuild. Invalid or older manifest formats rebuild
 automatically; malformed YAML raises an error instead of being silently replaced.
 
 FixtureBuilder supports parallel testing frameworks by coordinating fixture generation

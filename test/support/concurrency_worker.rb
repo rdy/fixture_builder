@@ -76,8 +76,7 @@ def configuration_for(source_path, fixture_directory, manifest_path, event_path,
 end
 
 def write_fixture(fixture_path, role)
-  File.write(
-    fixture_path,
+  FixtureBuilder::FixtureFile.new(fixture_path).write(
     {"record" => {"worker" => role, "pid" => Process.pid}}.to_yaml
   )
 end

@@ -60,6 +60,10 @@
   to the test database, and loads the application's `fixture_builder.rb` files
   without running their factories
   ([#122](https://github.com/rdy/fixture_builder/pull/122)).
+- Ignore hand-written YAML in the fixture directory when checking whether
+  generated fixtures are stale, so adding, editing, or removing it no longer
+  forces a full rebuild. Manifests that recorded hand-written files rebuild once
+  after upgrading ([#125](https://github.com/rdy/fixture_builder/pull/125)).
 - Load FixtureBuilder's Rake tasks from the gem so an application's own
   `tasks/fixture_builder.rake` file cannot shadow them
   ([#73](https://github.com/rdy/fixture_builder/pull/73)).
