@@ -21,7 +21,8 @@ module ModelResolverTests
         assert_equal table_name, error.table_name
         assert_equal %w[Alpha Beta], error.models.map(&:name)
         assert_equal(
-          "Multiple models match table #{table_name}: Alpha, Beta",
+          "Multiple models match table #{table_name}: Alpha, Beta. " \
+            "Choose one with model_classes, or set prefer_conventional_models to use the conventionally named model.",
           error.message
         )
         assert_equal original_fixture, File.binread(fixture_path)

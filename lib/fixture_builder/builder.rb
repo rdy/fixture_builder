@@ -128,7 +128,11 @@ module FixtureBuilder
     private
 
     def resolve_models_by_table
-      resolver = ModelResolver.new(connection_pool: ActiveRecord::Base.connection_pool)
+      resolver = ModelResolver.new(
+        connection_pool: ActiveRecord::Base.connection_pool,
+        model_classes: model_classes,
+        prefer_conventional_models: prefer_conventional_models
+      )
       tables.each_with_object({}) do |table_name, models_by_table|
         models_by_table[table_name] = resolver.resolve(table_name)
       end
