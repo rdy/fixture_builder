@@ -23,7 +23,24 @@ class LegacyFixture
 end
 
 class NamerTest < Test::Unit::TestCase
-  include TestDatabase
+  prepend IsolatedFixtureFilesystem
+
+  with_model :MagicalCreature do
+    table do |table|
+      table.string :name
+      table.string :species
+      table.string :powers
+      table.json :wizard_data
+      table.date :born_on
+      table.boolean :deleted, default: false, null: false
+    end
+
+    model do
+      validates_presence_of :name, :species
+      serialize :powers, type: Array
+      default_scope -> { where(deleted: false) }
+    end
+  end
 
   def setup
     configuration = FixtureBuilder::Configuration.new
@@ -64,13 +81,15 @@ class NamerTest < Test::Unit::TestCase
   end
 
   def test_populate_custom_names_from_current_fixture_sets
-    create_and_blow_away_old_db
+    # Earlier tests can leave this fixture set cached for another model class.
+    ActiveRecord::FixtureSet.reset_cache
     fixture_sets = ActiveRecord::FixtureSet.create_fixtures(
       test_path("legacy_fixtures"),
-      MagicalCreature.table_name
+      "magical_creatures"
     )
 
     assert_equal [ActiveRecord::FixtureSet], fixture_sets.map(&:class).uniq
+    assert_same MagicalCreature, fixture_sets.first.model_class
 
     @namer.populate_custom_names(fixture_sets)
     fixture = fixture_sets.first.fixtures.fetch("alice_the_mermaid")
