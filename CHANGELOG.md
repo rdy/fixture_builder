@@ -27,6 +27,10 @@
   `HashDiff` constant.
 - Remove positional `%s` table placeholders from `select_sql` and `delete_sql`
   after their deprecation in FixtureBuilder 0.5.0; use `%<table>s` instead.
+- Reserve `_fixture` as a record label: a table whose generated labels include
+  it raises `ArgumentError`. Tools that read generated YAML as plain records
+  must skip the `_fixture` metadata entry
+  ([#116](https://github.com/rdy/fixture_builder/pull/116)).
 
 ### Deprecated
 
@@ -51,18 +55,24 @@
 
 - Discover loaded Active Record models by their configured table names and write
   Rails-native `_fixture.model_class` metadata for model-backed fixture files,
-  including namespaced models and STI roots. Raw SQL fallback and ineligible-model
-  files omit that metadata; unresolved metadata can fall through to Rails'
-  conventional inference, while unrelated loaded models for one table still raise
-  deterministically. Explicit fixture names follow each model's primary key,
-  including custom and composite keys, and are no longer dropped for records
-  with UUID or other string `id` values
-  ([#109](https://github.com/rdy/fixture_builder/issues/109)).
+  including namespaced models and STI roots. Raw SQL fallback and
+  ineligible-model files omit that metadata; unresolved metadata can fall
+  through to Rails' conventional inference, while unrelated loaded models for
+  one table still raise deterministically. Models defined inside a migration
+  class, such as the throwaway models data migrations use, are ignored. Explicit
+  fixture names follow each model's primary key, including custom and composite
+  keys, and are no longer dropped for records with UUID or other string `id`
+  values ([#49](https://github.com/rdy/fixture_builder/issues/49),
+  [#109](https://github.com/rdy/fixture_builder/issues/109),
+  [#116](https://github.com/rdy/fixture_builder/pull/116),
+  [#129](https://github.com/rdy/fixture_builder/issues/129)).
 - Omit database-generated columns from generated fixtures so Rails can load
   snapshots from tables that have them
   ([#100](https://github.com/rdy/fixture_builder/issues/100)).
 - Generate model-backed fixture rows in primary-key order so fixture output
-  remains stable ([#50](https://github.com/rdy/fixture_builder/pull/50); thanks
+  remains stable, including for models whose primary key is not `id` or is
+  composite ([#50](https://github.com/rdy/fixture_builder/pull/50),
+  [#72](https://github.com/rdy/fixture_builder/issues/72); thanks
   [jackkinsella](https://github.com/jackkinsella)).
 - Make `spec:fixture_builder:clean` honor the configured `fixture_directory`
   and `fixture_builder_file`. Clean now boots the Rails environment, connects
