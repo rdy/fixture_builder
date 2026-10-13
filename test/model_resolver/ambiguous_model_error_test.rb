@@ -14,7 +14,8 @@ module ModelResolverTests
       assert_equal "creatures", error.table_name
       assert_equal [generated_creature, magical_creature], error.models
       assert_equal(
-        "Multiple models match table creatures: GeneratedCreature, MagicalCreature",
+        "Multiple models match table creatures: GeneratedCreature, MagicalCreature. " \
+          "Choose one with model_classes, or set prefer_conventional_models to use the conventionally named model.",
         error.message
       )
     end

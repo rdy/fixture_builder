@@ -287,6 +287,28 @@ same connection pool, and has usable primary keys. Models defined inside a
 migration class, such as the throwaway models data migrations use, are ignored.
 Independent eligible models that share a table raise `AmbiguousModelError`.
 
+Scripts, rake tasks, and one-off backfills sometimes define their own model for
+an existing table, which makes that table ambiguous once the application is
+loaded. Choose the model for such a table explicitly, by class or class name:
+
+```ruby
+FixtureBuilder.configure do |fbuilder|
+  fbuilder.model_classes = {"widgets" => "Widget"}
+end
+```
+
+A mapped model must pass the same eligibility checks. Alternatively, opt in to
+choosing the conventionally named model (`table_name.classify`) whenever exactly
+one of the ambiguous models has that name:
+
+```ruby
+FixtureBuilder.configure do |fbuilder|
+  fbuilder.prefer_conventional_models = true
+end
+```
+
+Without either setting, ambiguity keeps raising.
+
 FixtureBuilder writes Rails-native metadata for every model-backed file, so
 Rails can select the model without a separate fixture-class mapping. This also
 supports conventionally named models, namespaced models, and the root model for

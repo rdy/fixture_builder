@@ -16,8 +16,10 @@ module FixtureBuilder
 
     ACCESSIBLE_ATTRIBUTES = %i[select_sql delete_sql skip_tables files_to_check record_name_fields
       fixture_builder_file fixture_directory after_build legacy_fixtures model_name_procs
-      write_empty_files].freeze
-    attr_accessor :after_build, :legacy_fixtures, :model_name_procs, :write_empty_files
+      write_empty_files model_classes prefer_conventional_models].freeze
+    attr_accessor :after_build, :legacy_fixtures, :model_name_procs, :write_empty_files,
+      :prefer_conventional_models
+    attr_reader :model_classes
     attr_writer :skip_tables, :record_name_fields, :fixture_builder_file, :fixture_directory
 
     SCHEMA_FILES = ["db/schema.rb", "db/development_structure.sql", "db/test_structure.sql",
@@ -28,6 +30,14 @@ module FixtureBuilder
       self.use_sha1_digests = options[:use_sha1_digests] if options.key?(:use_sha1_digests)
       @file_hashes = file_hashes
       @write_empty_files = true
+      @model_classes = {}
+      @prefer_conventional_models = false
+    end
+
+    # Maps table names to the model each table's fixtures use, by class or class
+    # name, overriding model discovery for those tables.
+    def model_classes=(mapping)
+      @model_classes = mapping.to_h.transform_keys(&:to_s)
     end
 
     def include(*args)

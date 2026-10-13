@@ -2,6 +2,14 @@
 
 ## 0.6 (Unreleased)
 
+### Added
+
+- Choose the model for a table explicitly with `model_classes`, or opt in to
+  preferring the conventionally named model with `prefer_conventional_models`,
+  when scripts or backfills define their own models for an existing table.
+  `AmbiguousModelError` names both settings
+  ([#135](https://github.com/rdy/fixture_builder/issues/135)).
+
 ### Changed
 
 - Require Ruby 3.3 or newer and Rails, Active Record, and Active Support 8.0 or
