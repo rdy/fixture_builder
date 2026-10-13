@@ -13,11 +13,11 @@ module ConfigurationTests
       self.class.builds = []
       @directory = Dir.mktmpdir("fixture-builder-factories")
       @file = File.join(@directory, "fixture_builder.rb")
-      ActiveRecord::Base.establish_connection(adapter: "sqlite3", database: ":memory:")
       @previous_configuration = FixtureBuilder.instance_variable_get(:@configuration)
       @configuration = FixtureBuilder::Configuration.new.tap do |config|
         config.fixture_directory = File.join(@directory, "fixtures")
         config.fixture_builder_file = File.join(@directory, "fixture_builder.yml")
+        config.skip_tables = ActiveRecord::Base.connection.tables
       end
       FixtureBuilder.instance_variable_set(:@configuration, @configuration)
     end

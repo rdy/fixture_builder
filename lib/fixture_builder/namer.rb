@@ -22,8 +22,9 @@ module FixtureBuilder
       model_objects.each do |model_object|
         raise "Cannot name a blank object" if model_object.blank?
 
-        key = [model_object.class.table_name, model_object.id]
-        raise "Cannot set name for #{key.inspect} object twice" if @custom_names[key]
+        table_name = model_object.class.table_name
+        key = record_key(table_name, model_object.id)
+        raise "Cannot set name for #{[table_name, model_object.id].inspect} object twice" if @custom_names[key]
 
         @custom_names[key] = custom_name
         model_object
@@ -45,15 +46,14 @@ module FixtureBuilder
       end
 
       fixtures_by_name.each do |name, fixture|
-        id = fixture["id"].to_i
-        table_name = fixture.model_class.table_name
-        key = [table_name, id]
-        @custom_names[key] = name
+        model_class = fixture.model_class
+        ids = Array(model_class.try(:primary_key) || "id").map { |column| fixture[column] }
+        @custom_names[record_key(model_class.table_name, ids)] = name
       end
     end
 
-    def record_name(record_hash, table_name)
-      key = [table_name, record_hash["id"].to_i]
+    def record_name(record_hash, table_name, primary_key = "id")
+      key = record_key(table_name, Array(primary_key).map { |column| record_hash[column] })
       name = if (name_proc = @model_name_procs[table_name])
         name_proc.call(record_hash, next_row_index(table_name))
       elsif (custom = @custom_names[key])
@@ -67,6 +67,10 @@ module FixtureBuilder
     end
 
     private
+
+    # Primary key values arrive typecast from models and raw from rows, so
+    # compare them as strings. Composite keys compare element by element.
+    def record_key(table_name, id) = [table_name, Array(id).map(&:to_s)]
 
     def next_row_index(table_name)
       @row_counters[table_name] += 1
