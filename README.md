@@ -309,6 +309,18 @@ end
 
 Without either setting, ambiguity keeps raising.
 
+The preference cannot help when the real model is namespaced or otherwise not
+named `table_name.classify`, such as `Catalog::Widget` for `widgets`. The two
+settings combine: `model_classes` entries win for the tables they name, and the
+preference handles every other ambiguous table.
+
+```ruby
+FixtureBuilder.configure do |fbuilder|
+  fbuilder.prefer_conventional_models = true
+  fbuilder.model_classes = {"widgets" => "Catalog::Widget"}
+end
+```
+
 FixtureBuilder writes Rails-native metadata for every model-backed file, so
 Rails can select the model without a separate fixture-class mapping. This also
 supports conventionally named models, namespaced models, and the root model for
